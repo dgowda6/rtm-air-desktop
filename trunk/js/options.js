@@ -6,6 +6,6 @@ var defaultState = {
 		authToken: ''
 	};
 var settings = new Ext.air.FileProvider({
-	file: 'rtmdesktop.options',
+	file: '.rtmdesktop',
 	defaultState: defaultState
 });
