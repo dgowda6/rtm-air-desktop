@@ -4,6 +4,8 @@ conn.secret = '7fafbe6a8c6ff6b7';
 conn.start = null;
 conn.end = null;
 conn.authToken = '';
+conn.lists = [];
+conn.locations = [];
 
 conn.buildURL = function(data, method, aURL){
 	if(!aURL)
@@ -113,5 +115,48 @@ conn.getToken = function(ok, error){
 				ok(conn.user);
 		},
 		error: error
+	});
+}
+
+conn.getLists = function(ok, error){
+	this.makeQuery({
+		url: this.buildURL({}, 'rtm.lists.getList'),
+		ok: function(xml){
+			conn.lists = [];
+			var nl = xml.getElementsByTagName('list');
+			for(var i = 0; i<nl.length; i++){
+				if(nl.item(i).getAttribute('archived')==0 && nl.item(i).getAttribute('deleted')==0){
+					air.trace('adding list: '+nl.item(i).getAttribute('name'));
+					conn.lists.push({
+						id: nl.item(i).getAttribute('id'),
+						name: nl.item(i).getAttribute('name'),
+						locked: nl.item(i).getAttribute('locked')!=0,
+						smart: nl.item(i).getAttribute('smart')!=0
+					});
+				}
+			}
+			if(ok)
+				ok(conn.lists);
+		}, error: error
+	});
+}
+
+conn.getLocations = function(ok, error){
+	this.makeQuery({
+		url: this.buildURL({}, 'rtm.locations.getList'),
+		ok: function(xml){
+			conn.locations = [];
+			var nl = xml.getElementsByTagName('location');
+			for(var i = 0; i<nl.length; i++){
+				air.trace('adding location: '+nl.item(i).getAttribute('name'), nl.item(i).getAttribute('address'));
+				conn.locations.push({
+					id: nl.item(i).getAttribute('id'),
+					name: nl.item(i).getAttribute('name'),
+					address: nl.item(i).getAttribute('address')
+				});
+			}
+			if(ok)
+				ok(conn.locations);
+		}, error: error
 	});
 }

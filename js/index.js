@@ -6,7 +6,6 @@ var searchField = null;
 var addField = null;
 
 Ext.onReady(function(){
-	air.trace(air.File.applicationStorageDirectory.nativePath);
 	var mainWin = new Ext.air.NativeWindow({
 		id: 'mainWindow',
 		instance: window.nativeWindow,
@@ -34,7 +33,6 @@ Ext.onReady(function(){
 			{
 				text: 'Settings',
 				handler: function(){
-					air.trace('Show settings dialog');
 					openNewWindow({
 						id: 'settingsWin',
 						src: 'settings.html'
@@ -69,16 +67,17 @@ Ext.onReady(function(){
 	});
 
 	mainWin.on('move', function(event){
-		air.trace('x: '+event.afterBounds.x+', '+event.afterBounds.y);
+//		air.trace('x: '+event.afterBounds.x+', '+event.afterBounds.y);
 		settings.set('mainLeft', event.afterBounds.x);
 		settings.set('mainTop', event.afterBounds.y);
 	});
 	mainWin.on('resize', function(event){
-		air.trace('width: '+event.afterBounds.width+', '+event.afterBounds.height);
+//		air.trace('width: '+event.afterBounds.width+', '+event.afterBounds.height);
 		settings.set('mainWidth', event.afterBounds.width);
 		settings.set('mainHeight', event.afterBounds.height);
 	});
-	mainWin.on('close', function(event){
+	mainWin.on('closing', function(event){
+		settings.saveState();
 		air.NativeApplication.nativeApplication.exit(0);
 	});
 	mainWin.moveTo(settings.get('mainLeft') || defaultState.mainLeft, settings.get('mainTop') || defaultState.mainTop);

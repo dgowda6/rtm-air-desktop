@@ -41,6 +41,8 @@ Ext.menu.Item.prototype.itemTpl=new Ext.XTemplate(
      '</a>'
  );
 
+Ext.form.ComboBox.prototype.tpl = new Ext.XTemplate('<tpl for="."><div class="x-combo-list-item">{text}</div></tpl>');
+
 Ext.layout.MenuLayout.itemTpl=Ext.layout.MenuLayout.prototype.itemTpl=new Ext.XTemplate(
     '<li id="{itemId}" class="{itemCls}">',
         '<tpl if="needsIcon">',
