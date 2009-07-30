@@ -1,0 +1,20 @@
+.x-task-priority3{
+	background-color: #ffcccc;
+}
+.x-task-priority2{
+	background-color: #ffdddd;
+}
+.x-task-priority1{
+	background-color: #ffeeee;
+}
+.x-task-title{
+	clear: both;
+}
+.x-task-tags{
+	color: #0000cc;
+	float: left;
+}
+.x-task-due{
+	color: #777777;
+	float: right;
+}

@@ -28,7 +28,7 @@ Date.precompileFormats = function(s){
     }
 }
 
-Date.precompileFormats("D n/j/Y|n/j/Y|n/j/y|m/j/y|n/d/y|m/j/Y|n/d/Y|YmdHis|F d, Y|l, F d, Y|H:i:s|g:i A|g:ia|g:iA|g:i a|g:i A|h:i|g:i|H:i|ga|ha|gA|h a|g a|g A|gi|hi|gia|hia|g|H|m/d/y|m/d/Y|m-d-y|m-d-Y|m/d|m-d|md|mdy|mdY|d|Y-m-d|Y-m-d H:i:s|d/m/y|d/m/Y|d-m-y|d-m-Y|d/m|d-m|dm|dmy|dmY|Y-m-d|l|D m/d|D m/d/Y|m/d/Y");
+Date.precompileFormats("Y-m-d\\TH:i:s\\Z|Z|n/j|g:i a");
 
 Ext.menu.Item.prototype.itemTpl=new Ext.XTemplate(
     '<a id="{id}" class="{cls}" hidefocus="true" unselectable="on" href="{href}"',
