@@ -63,8 +63,8 @@ conn.buildURL = function(data, method, aURL){
 		toMD5 += data[id];
 		aURL += (id+'='+encodeURIComponent(data[id])+'&');
 	}
-	aURL += 'api_sig='+hex_md5(toMD5);
-	air.trace('toMD5 = '+toMD5+', data = '+aURL);
+	aURL += 'api_sig='+MD5(toMD5);
+//	air.trace('toMD5 = '+toMD5+', data = '+aURL);
 	return aURL;
 }
 
@@ -74,29 +74,29 @@ conn.makeQuery = function(config){
 //		air.trace(req.readyState);
         if (req.readyState == 4) {
 			conn.activeCount--;
-			air.trace('response text: ',req.responseText);
+//			air.trace('response text: ',req.responseText);
             var xml = req.responseXML;
 			if(!xml){
 				var code = 1;
 				var msg = 'Can\'t connect to RTM host, please check connection settings';
-				if(conn.end && conn.activeCount==0)
-					conn.end(code, msg);
 				if(config.error)
 					config.error(code, msg);
+				if(conn.end && conn.activeCount==0)
+					conn.end(code, msg);
 				return;
 			}
 			if(xml.getElementsByTagName("err").length>0){
 				var code = xml.getElementsByTagName("err").item(0).getAttribute('code');
 				var msg = xml.getElementsByTagName("err").item(0).getAttribute('msg');
-				if(conn.end && conn.activeCount==0)
-					conn.end(code, msg);
 				if(config.error)
 					config.error(code, msg);
-			}else{
 				if(conn.end && conn.activeCount==0)
-					conn.end();
+					conn.end(code, msg);
+			}else{
 				if(config.ok)
 					config.ok(xml);
+				if(conn.end && conn.activeCount==0)
+					conn.end();
 			}
         }
     };
@@ -106,7 +106,7 @@ conn.makeQuery = function(config){
 	if(!config.url)
 		config.url = this.apiURL;
 	air.trace('makeQuery to '+config.url+' with '+config.data);
-    req.open(config.data? 'POST': 'GET', config.url, true);
+    req.open(config.data? 'POST': 'GET', config.url, config.sync? false: true);
 	req.setRequestHeader("Cache-Control", "no-cache");
 	req.send(config.data? config.data: null);
 }
@@ -215,13 +215,14 @@ conn.getList = function(listid, ok, error){
 		ok: function(xml){
 			var list = xml.getElementsByTagName('list');
 			var zoneOffset = parseInt(new Date().format('Z'));
-			air.trace('Zone offset = '+zoneOffset);
+//			air.trace('Zone offset = '+zoneOffset);
 			if(list.length>0){
 				var nl = list.item(0).childNodes;
 				for(var i = 0; i<nl.length; i++){
 					var s = nl.item(i);
 					if(s.nodeName=='taskseries'){
 						var task = {
+							list_id: list.item(0).getAttribute('id'),
 							series_id: s.getAttribute('id'),
 							name: s.getAttribute('name'),
 							source: s.getAttribute('source')
@@ -242,16 +243,16 @@ conn.getList = function(listid, ok, error){
 							task.due = null;
 							task.hasTime = false;
 						}
-						task.priority = parseInt(t.getAttribute('priority')=='N'? 0: t.getAttribute('priority'));
+						task.priority = parseInt(t.getAttribute('priority')=='N'? 4: t.getAttribute('priority'));
 						task.estimate = t.getAttribute('estimate');
 						task.id = t.getAttribute('id')
-						air.trace('Task', task.id, task.series_id, task.name, task.source, task.completed,
-								  task.deleted, task.priority, task.estimate, task.due, task.hasTime);
+//						air.trace('Task', task.id, task.series_id, task.name, task.source, task.completed,
+//								  task.deleted, task.priority, task.estimate, task.due, task.hasTime);
 						var tags = s.getElementsByTagName('tag');
 						task.tags = [];
 						for(var j = 0; j<tags.length; j++){
 							task.tags.push(tags.item(j).firstChild.nodeValue);
-							air.trace('Tag', task.tags[j]);
+//							air.trace('Tag', task.tags[j]);
 						}
 						var notes = s.getElementsByTagName('note');
 						task.notes = [];
@@ -261,7 +262,7 @@ conn.getList = function(listid, ok, error){
 								title: notes.item(j).getAttribute('title'),
 								body: notes.item(j).firstChild.nodeValue
 							});
-							air.trace('Note', task.notes[j].id, task.notes[j].title);
+//							air.trace('Note', task.notes[j].id, task.notes[j].title);
 						}
 
 						conn.list.push(task);
@@ -272,4 +273,112 @@ conn.getList = function(listid, ok, error){
 				ok(conn.list);
 		}, error: error
 	})
-}
+};
+
+conn.createTimeline = function(ok, error){
+	this.makeQuery({
+		sync: true,
+		url: this.buildURL({}, 'rtm.timelines.create'),
+		ok: function(xml){
+			if(ok)
+				ok(xml.getElementsByTagName('timeline').item(0).firstChild.nodeValue);
+		}, error: error});
+};
+
+conn.addTask = function(timeline, name, list_id, ok, error){
+	this.makeQuery({
+		url: this.buildURL({
+			timeline: timeline,
+			list_id: list_id>0? list_id: null,
+			name: name,
+			parse: true
+		}, 'rtm.tasks.add'),
+		ok: function(xml){
+			if(ok)
+				ok({
+					id: xml.getElementsByTagName('task').item(0).getAttribute('id'),
+					series_id: xml.getElementsByTagName('taskseries').item(0).getAttribute('id'),
+					list_id: xml.getElementsByTagName('list').item(0).getAttribute('id')
+				});
+		}, error: error});
+};
+
+conn.setTags = function(timeline, task, tags, ok, error){
+	this.makeQuery({
+		sync: true,
+		url: this.buildURL({
+			timeline: timeline,
+			list_id: task.list_id,
+			taskseries_id: task.series_id,
+			task_id: task.id,
+			tags: tags
+		}, 'rtm.tasks.setTags'),
+		ok: function(xml){
+			if(ok)
+				ok();
+		}, error: error});
+};
+
+conn.setEstimate = function(timeline, task, estimate, ok, error){
+	this.makeQuery({
+		sync: true,
+		url: this.buildURL({
+			timeline: timeline,
+			list_id: task.list_id,
+			taskseries_id: task.series_id,
+			task_id: task.id,
+			estimate: estimate
+		}, 'rtm.tasks.setEstimate'),
+		ok: function(xml){
+			if(ok)
+				ok();
+		}, error: error});
+};
+
+conn.setLocation = function(timeline, task, location, ok, error){
+	this.makeQuery({
+		sync: true,
+		url: this.buildURL({
+			timeline: timeline,
+			list_id: task.list_id,
+			taskseries_id: task.series_id,
+			task_id: task.id,
+			location_id: location
+		}, 'rtm.tasks.setLocation'),
+		ok: function(xml){
+			if(ok)
+				ok();
+		}, error: error});
+};
+
+conn.setPriority = function(timeline, task, priority, ok, error){
+	this.makeQuery({
+		sync: true,
+		url: this.buildURL({
+			timeline: timeline,
+			list_id: task.list_id,
+			taskseries_id: task.series_id,
+			task_id: task.id,
+			priority: priority
+		}, 'rtm.tasks.setPriority'),
+		ok: function(xml){
+			if(ok)
+				ok();
+		}, error: error});
+};
+
+conn.setRecurrence = function(timeline, task, repeat, ok, error){
+	this.makeQuery({
+		sync: true,
+		url: this.buildURL({
+			timeline: timeline,
+			list_id: task.list_id,
+			taskseries_id: task.series_id,
+			task_id: task.id,
+			repeat: repeat
+		}, 'rtm.tasks.setRecurrence'),
+		ok: function(xml){
+			if(ok)
+				ok();
+		}, error: error});
+};

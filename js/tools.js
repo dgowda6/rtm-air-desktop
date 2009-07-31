@@ -28,7 +28,7 @@ Date.precompileFormats = function(s){
     }
 }
 
-Date.precompileFormats("Y-m-d\\TH:i:s\\Z|Z|n/j|g:i a");
+Date.precompileFormats("Y-m-d\\TH:i:s\\Z|Z|n/j|g:i a|l|Y|Y-m-d|z");
 
 Ext.menu.Item.prototype.itemTpl=new Ext.XTemplate(
     '<a id="{id}" class="{cls}" hidefocus="true" unselectable="on" href="{href}"',
@@ -50,3 +50,17 @@ Ext.layout.MenuLayout.itemTpl=Ext.layout.MenuLayout.prototype.itemTpl=new Ext.XT
         '</tpl>',
     '</li>'
 );
+
+var daysBetween = function(d1, d2){
+	var y1 = parseInt(d1.format('Y'));
+	var y2 = parseInt(d2.format('Y'));
+	var dy1 = parseInt(d1.format('z'));
+	var dy2 = parseInt(d2.format('z'));
+	if(y1==y2){
+		return dy1-dy2;
+	}
+	if(y1<y2){
+		return -(d1.isLeapYear()? 366: 365)+dy1-dy2;
+	}
+	return (d2.isLeapYear()? 366: 365)-dy2+dy1;
+}

@@ -1,12 +1,3 @@
-.x-task-priority3{
-	background-color: #ffcccc;
-}
-.x-task-priority2{
-	background-color: #ffdddd;
-}
-.x-task-priority1{
-	background-color: #ffeeee;
-}
 .x-task-title{
 	clear: both;
 }
@@ -17,4 +8,29 @@
 .x-task-due{
 	color: #777777;
 	float: right;
+}
+.x-task-title-1{
+	font-weight: bold;
+}
+.x-task-title-2{
+	font-weight: bold;
+	text-decoration: underline;
+}
+.x-task-item{
+	padding-left: 8px;
+}
+.x-task-priority1{
+	padding-left: 3px;
+	border-left: 5px solid rgb(234, 82, 0);
+}
+.x-task-priority2{
+	padding-left: 3px;
+	border-left: 5px solid rgb(0, 96, 191);
+}
+.x-task-priority3{
+	padding-left: 3px;
+	border-left: 5px solid rgb(53, 154, 255);
+}
+.x-table-layout{
+	width: 100%;
 }

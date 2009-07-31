@@ -10538,6 +10538,7 @@ Ext.apply(Date.prototype, {
             num = 0,
             d = this.clone(),
             m = this.getMonth();
+		d.setDate(1);
 
         for (i = 0, d.setMonth(0); i < m; d.setMonth(++i)) {
             num += d.getDaysInMonth();
