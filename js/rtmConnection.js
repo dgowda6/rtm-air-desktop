@@ -382,3 +382,18 @@ conn.setRecurrence = function(timeline, task, repeat, ok, error){
 				ok();
 		}, error: error});
 };
+
+conn.complete = function(timeline, task, ok, error){
+	this.makeQuery({
+		sync: true,
+		url: this.buildURL({
+			timeline: timeline,
+			list_id: task.list_id,
+			taskseries_id: task.series_id,
+			task_id: task.id
+		}, 'rtm.tasks.complete'),
+		ok: function(xml){
+			if(ok)
+				ok();
+		}, error: error});
+};
