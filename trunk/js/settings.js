@@ -210,7 +210,7 @@ Ext.onReady(function(){
 	var trackWorkTimeChanged = function(checked){
 		workTimePeriod.setDisabled(!checked);
 		restPeriod.setDisabled(!checked);
-		inactivityDelay.setDisabled(!checked);
+//		inactivityDelay.setDisabled(!checked);
 	}
 
 	trackWorkTime = new Ext.form.Checkbox({
@@ -222,7 +222,7 @@ Ext.onReady(function(){
 	});
 
 	workTimePeriod = new Ext.form.NumberField({
-		minValue: 10,
+		minValue: 1,
 		maxValue: 240,
 		fieldLabel: 'Work period, in minutes',
 		increment: 1,
@@ -285,6 +285,7 @@ Ext.onReady(function(){
 
 					window.nativeWindow.close();
 					opener.reloadList();
+					opener.timer.init();
 				}
 			},{
 				text: 'Cancel',

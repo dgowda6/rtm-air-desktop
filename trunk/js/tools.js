@@ -5,15 +5,34 @@ var openNewWindow = function(config){
 		win.instance.activate();
 		return false;
 	} else {
-		win = new Ext.air.NativeWindow({
+		var conf = {
 			id: config.id,
 			file: config.src,
-			chrome: config.chrome?aChrome:'standard',
-			type: config.type?aWinType: 'normal',
+			chrome: config.chrome?config.chrome:'standard',
+			resizeable: true,
+			type: config.type || 'normal',
 			transparent: config.transparent
-		});
+		};
+		if(config.stateful){
+			conf.width = settings.get(config.id+'Width') || config.width || 500;
+			conf.height = settings.get(config.id+'Height') || config.height || 500;
+		}
+		win = new Ext.air.NativeWindow(conf);
+		if(config.stateful){
+			win.on('move', function(event){
+				settings.set(config.id+'Left', event.afterBounds.x);
+				settings.set(config.id+'Top', event.afterBounds.y);
+			});
+			win.on('resize', function(event){
+				settings.set(config.id+'Width', event.afterBounds.width);
+				settings.set(config.id+'Height', event.afterBounds.height);
+			});
+			win.moveTo(settings.get(config.id+'Left') || config.left || 10,
+				settings.get(config.id+'Top') || config.top || 10);
+		}
 	}
-	return true;
+	win.instance.alwaysInFront = config.onTop || false;
+	return win;
 }
 
 var showError = function(aMessage){

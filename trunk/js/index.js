@@ -7,6 +7,9 @@ var searchField = null;
 var searchPanel = null;
 var addField = null;
 var statusbar = null;
+var trackPanel = null;
+var trackProgress = null;
+
 var gridTpl = new Ext.XTemplate('<tpl for="."><div class="x-task-item x-task-priority{priority}"><div class="x-task-title x-task-title-{overdue}">{title}</div><div class="x-task-tags">{tags}</div><div class="x-task-due">{due_text}</div><div style="clear: both;"></div></div></tpl>');
 
 var parseQuickAdd = function(data){
@@ -134,6 +137,11 @@ var parseQuickAdd = function(data){
 	return result;
 }
 
+var reloadByTimer = function(){
+	if(conn.authToken && !conn.active())
+		reloadList();
+}
+
 var reloadList = function(){
 	conn.getList(settings.get('showList'), function(list){
 		gridStore.removeAll();
@@ -190,6 +198,19 @@ var reloadList = function(){
 	});
 }
 
+var showFloatWin = function(task){
+	var win = openNewWindow({
+		id: 'float',
+		src: '../html/float.html',
+		stateful: true,
+//		chrome: 'none',
+		type: 'utility',
+		onTop: true,
+		width: 400,
+		height: 250
+	});
+}
+
 Ext.onReady(function(){
 	var mainWin = new Ext.air.NativeWindow({
 		id: 'mainWindow',
@@ -231,6 +252,25 @@ Ext.onReady(function(){
 			}
 		}
 	});
+	var completeBtn = new Ext.Button({
+		text: 'Complete',
+		handler: function(){
+			if(selectionModel.getCount()>0){
+				var id = selectionModel.getSelected().get('id');
+				for (var i = 0; i < conn.list.length; i++) {
+					var task = conn.list[i];
+					if(task.id==id){
+						air.trace('Completing task', task.name);
+						conn.createTimeline(function(tl){
+							conn.complete(tl, task);
+							gridStore.remove(selectionModel.getSelected());
+						});
+					}
+				};
+			}
+		},
+		enabled: false
+	});
 	toolbar = new Ext.Toolbar({
 		region: 'north',
 		items: [
@@ -239,11 +279,11 @@ Ext.onReady(function(){
 				handler: function(){
 					reloadList();
 				}
-			}, '->',{
+			}, completeBtn, '->',{
 				text: 'Settings',
 				handler: function(){
 					openNewWindow({
-						id: 'settingsWin',
+						id: 'settings',
 						src: 'settings.html'
 					});
 				}
@@ -279,6 +319,7 @@ Ext.onReady(function(){
 		border: false,
 //		collapsed: true,
 		autoHeight: true,
+		autoWidth: true,
 		items: [searchField, saveSearch]
 	});
 
@@ -287,9 +328,19 @@ Ext.onReady(function(){
 		border: false,
 		region: 'north',
 		autoHeight: true,
+//		autoWidth: true,
 		items: [addField, searchPanel]
 	});
-
+	
+	trackProgress = new Ext.ProgressBar({
+	});
+	
+	trackPanel = new Ext.Panel({
+		region: 'south',
+		autoHeight: true,
+		layout: 'fit',
+		items: [trackProgress]		
+	});
 	gridStore = new Ext.data.ArrayStore({
 		fields: ['id', 'title', 'tags', 'due', 'due_text', 'repeated', 'estimate', 'priority', 'exec_time', 'exec_time_text', 'overdue'],
 		sortInfo: {
@@ -299,19 +350,29 @@ Ext.onReady(function(){
 		idIndex: 0 // id for each record will be the first element
 	});
 
+	var selectionModel = new Ext.grid.RowSelectionModel({singleSelect:true});
+	selectionModel.on('selectionchange', function(){
+//		air.trace('Selected rows: ',selectionModel.getCount());
+//		completeBtn.setDisabled(selectionModel.getCount()==0);
+		if(selectionModel.getCount()>0){
+			//Row here
+		}else{
+			//No rows selected
+		}
+	});
+
 	grid = new Ext.grid.GridPanel({
 		store: gridStore,
 //		tbar: searchToolbar,
-		bbar: statusbar,
 		region: 'center',
 		columns: [
 			{id: 'title', header: 'Task', tpl: gridTpl, xtype: 'templatecolumn', dataIndex: 'id'}
 		],
 		autoExpandColumn: 'title',
 		enableHdMenu: false,
-		sm: new Ext.grid.RowSelectionModel({singleSelect:true})
+		sm: selectionModel
 	});
-
+	grid.on('rowdblclick', showFloatWin);
 	mainWin.on('move', function(event){
 //		air.trace('x: '+event.afterBounds.x+', '+event.afterBounds.y);
 		settings.set('mainLeft', event.afterBounds.x);
@@ -329,9 +390,24 @@ Ext.onReady(function(){
 	mainWin.moveTo(settings.get('mainLeft') || defaultState.mainLeft, settings.get('mainTop') || defaultState.mainTop);
 	mainWin.show();
 	mainWin.instance.activate();
+	timer.init();
+	air.NativeApplication.nativeApplication.addEventListener(air.Event.USER_IDLE, timer.userIdle);
+	air.NativeApplication.nativeApplication.addEventListener(air.Event.USER_PRESENT, timer.userActive);
+	Ext.TaskMgr.start({
+		run: timer.oneSecond,
+		interval: 1000
+	});
+	Ext.TaskMgr.start({
+		run: reloadByTimer,
+		interval: 5*60*1000
+	});
 	viewport = new Ext.Viewport({
-		layout: 'border',
-		items: [grid, topPanel]
+		layout: 'fit',
+		items:{
+			bbar: statusbar,
+			layout: 'border',
+			items: [grid, topPanel, trackPanel]
+		}
 	});
 	searchPanel.toggleCollapse(false);
 	conn.start = function(){
@@ -361,3 +437,121 @@ Ext.onReady(function(){
 		air.trace('Check failed, '+code+':'+message);
 	});
 });
+
+
+var timer = {};
+timer.TYPE_USER_ACTIVE = 0;
+timer.TYPE_USER_OVERWORK = 1;
+timer.TYPE_USER_BREAK_YEARLY = 2;
+timer.TYPE_USER_BREAK_OVERWORK = 3;
+timer.TYPE_USER_BREAK_WAIT_WORK = 4;
+timer.workSeconds = 0;
+timer.idleSeconds = 0;
+timer.trackWorkTime = false;
+timer.action = timer.TYPE_USER_ACTIVE;
+timer.odd = false;
+timer.isUserActive = true;
+
+timer.updateProgress = function(value, seconds, text){
+	var mins = Math.floor(seconds/60);
+	var secs = seconds-mins*60;
+	trackProgress.updateProgress(value, text+mins+':'+(secs<10?'0':'')+secs);
+//	air.trace('update', value, text+mins+':'+(secs<10?'0':'')+secs);
+}
+
+timer.oneSecond = function(){	
+	if(!timer.trackWorkTime)
+		return;
+	if(timer.action==timer.TYPE_USER_ACTIVE || timer.action==timer.TYPE_USER_OVERWORK){
+		//user active
+		timer.workSeconds++;
+		if(timer.workSeconds>timer.workTimePeriod)
+			timer.action = timer.TYPE_USER_OVERWORK;
+	}else{
+		//user idle
+		timer.idleSeconds++;
+		if(timer.idleSeconds>=timer.restPeriod){//Rest too much
+			if(timer.action==timer.TYPE_USER_BREAK_OVERWORK && timer.isUserActive){
+				//When user took a rest after overwork and rest is over
+				timer.action = timer.TYPE_USER_ACTIVE;
+				timer.workSeconds = 0;
+			}else{
+				//Just wait for activity from user
+				timer.action = timer.TYPE_USER_BREAK_WAIT_WORK;				
+			}
+		}
+	}
+	timer.showProgress();
+};
+
+timer.showProgress = function(){
+	switch(timer.action){
+		case timer.TYPE_USER_ACTIVE:
+			timer.updateProgress(timer.workSeconds/timer.workTimePeriod, timer.workSeconds, 'Work time: ');
+			break;
+		case timer.TYPE_USER_OVERWORK:
+			timer.updateProgress(timer.odd? 0: 1, timer.workSeconds-timer.workTimePeriod, 'Overwork time: -');
+			timer.odd = !timer.odd;
+			break;
+		case timer.TYPE_USER_BREAK_OVERWORK:
+		case timer.TYPE_USER_BREAK_YEARLY:
+			timer.updateProgress(timer.idleSeconds/timer.restPeriod, timer.idleSeconds, 'Rest time: ');
+			break;
+		case timer.TYPE_USER_BREAK_WAIT_WORK:
+			timer.updateProgress(timer.odd? 0: 1, timer.idleSeconds, 'Rest time: ');
+			timer.odd = !timer.odd;
+			break;
+	}	
+}
+
+timer.init = function(){
+	var prevTrack = this.trackWorkTime || false;
+	this.trackWorkTime = settings.get('trackWorkTime') || false;
+	this.workTimePeriod = (settings.get('workTimePeriod') || 50)*60;
+	this.restPeriod = (settings.get('restPeriod') || 10)*60;
+	air.NativeApplication.nativeApplication.idleThreshold = settings.get('inactivityDelay') || 30;
+	if(!this.trackWorkTime){
+		trackProgress.updateProgress(0, 'Disabled');
+		trackPanel.setDisabled(true);
+	}else{
+		if(!prevTrack){
+			this.action = this.TYPE_USER_ACTIVE;
+			this.workSeconds = 0;
+		}
+		trackPanel.setDisabled(false);
+		this.userActive();
+	}
+};
+
+timer.userActive = function(){
+	air.trace('userActive');
+	timer.isUserActive = true;
+	if(!timer.trackWorkTime)
+		return;
+	if(timer.action!=timer.TYPE_USER_ACTIVE && timer.action!=timer.TYPE_USER_OVERWORK){
+		if(timer.action==timer.TYPE_USER_BREAK_YEARLY){
+			timer.action = timer.TYPE_USER_ACTIVE;
+		}else{
+			if(timer.action==timer.TYPE_USER_BREAK_WAIT_WORK){
+				timer.action = timer.TYPE_USER_ACTIVE;
+				timer.workSeconds = 0;				
+			}
+		}
+		timer.showProgress();
+	}
+};
+
+timer.userIdle = function(){
+	air.trace('userIdle');
+	timer.isUserActive = false;
+	if(!timer.trackWorkTime)
+		return;
+	if(timer.action==timer.TYPE_USER_ACTIVE || timer.action==timer.TYPE_USER_OVERWORK){
+		timer.idleSeconds = settings.get('inactivityDelay') || 30;
+		if(timer.workSeconds>timer.workTimePeriod)
+			timer.action = timer.TYPE_USER_BREAK_OVERWORK;
+		else
+			timer.action = timer.TYPE_USER_BREAK_YEARLY;
+		timer.showProgress();
+	}
+}
