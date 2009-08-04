@@ -74,7 +74,7 @@ conn.makeQuery = function(config){
 //		air.trace(req.readyState);
         if (req.readyState == 4) {
 			conn.activeCount--;
-//			air.trace('response text: ',req.responseText);
+			air.trace('response text: ',req.responseText);
             var xml = req.responseXML;
 			if(!xml){
 				var code = 1;
@@ -216,13 +216,13 @@ conn.getList = function(listid, ok, error){
 			var list = xml.getElementsByTagName('list');
 			var zoneOffset = parseInt(new Date().format('Z'));
 //			air.trace('Zone offset = '+zoneOffset);
-			if(list.length>0){
-				var nl = list.item(0).childNodes;
+			for(var index = 0; index<list.length; index++){
+				var nl = list.item(index).childNodes;
 				for(var i = 0; i<nl.length; i++){
 					var s = nl.item(i);
 					if(s.nodeName=='taskseries'){
 						var task = {
-							list_id: list.item(0).getAttribute('id'),
+							list_id: list.item(index).getAttribute('id'),
 							series_id: s.getAttribute('id'),
 							name: s.getAttribute('name'),
 							source: s.getAttribute('source')
@@ -385,7 +385,7 @@ conn.setRecurrence = function(timeline, task, repeat, ok, error){
 
 conn.complete = function(timeline, task, ok, error){
 	this.makeQuery({
-		sync: true,
+		sync: false,
 		url: this.buildURL({
 			timeline: timeline,
 			list_id: task.list_id,
@@ -397,3 +397,46 @@ conn.complete = function(timeline, task, ok, error){
 				ok();
 		}, error: error});
 };
+
+var sql = {};
+sql.init = function(){
+	this.conn = Ext.data.SqlDB.getInstance();
+	this.conn.open('rtm.db');
+	this.timeRecord = Ext.data.Record.create([
+		{name: 'task_id', type:'int'},
+		{name: 'seconds', type:'int'}
+	]);
+	var proxy = new Ext.data.SqlDB.Proxy(this.conn, 'time', 'task_id', {
+		recordType: this.timeRecord,
+		idIndex: 0
+	});
+	this.timeStore = proxy.store;
+	this.timeStore.load();
+};
+
+sql.getSeconds = function(taskID){
+	//First, iterate over all records
+	for(var i = 0; i < this.timeStore.getCount(); i++){
+		air.trace('Now in DB: ', this.timeStore.getAt(i).get('task_id'), this.timeStore.getAt(i).get('seconds'));
+	}
+	var rec = this.timeStore.getById(taskID);
+	if(rec)
+		return rec.get('seconds');
+	return 0;
+}
+sql.saveSeconds = function(taskID, seconds){
+	var rec = this.timeStore.getById(taskID);
+	if(rec)
+		rec.set('seconds', seconds);
+	else{
+		this.timeStore.add(new this.timeRecord({
+			task_id: taskID,
+			seconds: seconds
+		}));
+	}
+}
+sql.deleteSeconds = function(taskID){
+	var rec = this.timeStore.getById(taskID);
+	if(rec)
+		this.timeStore.remove(rec);
+}

@@ -33616,7 +33616,7 @@ Ext.data.ArrayStore = Ext.extend(Ext.data.Store, {
      */
     constructor: function(config){
         Ext.data.ArrayStore.superclass.constructor.call(this, Ext.apply(config, {
-            reader: new Ext.data.ArrayReader(config)
+            reader: new Ext.data.ArrayReader(config, config.recordType)
         }));
     },
 

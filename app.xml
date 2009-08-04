@@ -10,7 +10,6 @@
 	<filename>rtmDesktop</filename>
 	<description>
 		<text xml:lang="en">Remember The Milk desktop client</text>
-		<text xml:lang="ja">これは Adobe AIR のサンプルアプリケーションです。</text>
 	</description>
 	<copyright>Copyright 2009, Konstantin Vorobyev</copyright>
 	<initialWindow>

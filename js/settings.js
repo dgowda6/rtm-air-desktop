@@ -26,7 +26,7 @@ Ext.onReady(function(){
 
 	var tokenOk = function(user){
 		userButton.setText(user.username+': remove permission');
-		air.trace('Saving token '+opener.conn.authToken);
+//		air.trace('Saving token '+opener.conn.authToken);
 		opener.settings.set('authToken', opener.conn.authToken);
 		buttonStatus = 2;
 		opener.conn.getLists(function(lists){
