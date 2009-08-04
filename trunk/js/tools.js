@@ -1,9 +1,41 @@
+var windows = {};
+var childWindowOpened = function(aAirWin, aWindow){
+	for(var id in windows){
+		if(windows[id].nativeWindow==aAirWin){
+			windows[id].window = aWindow;
+			if(windows[id].afterOpen)
+				windows[id].afterOpen(windows[id], true);
+			return;
+		}
+	};
+}
+
+var getChildWindow = function(winID){
+	var win = Ext.air.NativeWindowManager.get(winID);
+	if(windows[winID] && windows[winID].window && win){
+		return windows[winID];
+	}
+	return null;
+}
+
+var escapeHTML = function(s){
+	if(!s)
+		return '';
+	var res = s.replace(/</g, '&lt;');
+	res = res.replace(/>/g, '&gt;');
+	res = res.replace(/\n/g, '<br/>');
+	return res;
+};
+
+
 var openNewWindow = function(config){
 	var win = Ext.air.NativeWindowManager.get(config.id);
 	if(win) {
 		win.instance.orderToFront();
 		win.instance.activate();
-		return false;
+		if(windows[config.id] && config.afterOpen){
+			config.afterOpen(windows[config.id], false);
+		}
 	} else {
 		var conf = {
 			id: config.id,
@@ -18,12 +50,17 @@ var openNewWindow = function(config){
 			conf.height = settings.get(config.id+'Height') || config.height || 500;
 		}
 		win = new Ext.air.NativeWindow(conf);
+		windows[config.id] = {
+			nativeWindow: win.instance,
+			afterOpen: config.afterOpen
+		};
 		if(config.stateful){
 			win.on('move', function(event){
 				settings.set(config.id+'Left', event.afterBounds.x);
 				settings.set(config.id+'Top', event.afterBounds.y);
 			});
 			win.on('resize', function(event){
+				air.trace(event.afterBounds.width, event.afterBounds.height);
 				settings.set(config.id+'Width', event.afterBounds.width);
 				settings.set(config.id+'Height', event.afterBounds.height);
 			});
