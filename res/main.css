@@ -1,10 +1,14 @@
 .x-task-title{
-	clear: left;
+	float: left;
 }
 
-x-task-timer{
+.x-task-timer{
 	float: left;
 	padding-right: 5px;
+}
+
+.x-task-timer-odd-1{
+	color: #878787;
 }
 
 .x-task-tags{
@@ -88,6 +92,7 @@ x-task-timer{
 	padding-right: 5px;
 	display: table-cell;
 	text-align: right;
+	vertical-align: bottom;
 }
 
 #float-tags{
@@ -95,7 +100,26 @@ x-task-timer{
 	font-size: 0.8em;
 }
 
+#float-location{
+	color: #000077;
+	font-size: 0.8em;
+}
 #float-due{
 	color: #676767;
 	font-size: 0.8em;
 }
+
+.icn-clock{background: url(../res/icn/clock.png) 0 0 no-repeat !important;}
+.icn-complete{background: url(../res/icn/complete.png) 0 0 no-repeat !important;}
+.icn-due{background: url(../res/icn/due.png) 0 0 no-repeat !important;}
+.icn-edit{background: url(../res/icn/edit.png) 0 0 no-repeat !important;}
+.icn-error{background: url(../res/icn/error.png) 0 0 no-repeat !important;}
+.icn-list{background: url(../res/icn/list.png) 0 0 no-repeat !important;}
+.icn-location{background: url(../res/icn/location.png) 0 0 no-repeat !important;}
+.icn-pause{background: url(../res/icn/pause.png) 0 0 no-repeat !important;}
+.icn-reload{background: url(../res/icn/reload.png) 0 0 no-repeat !important;}
+.icn-search{background: url(../res/icn/search.png) 0 0 no-repeat !important;}
+.icn-settings{background: url(../res/icn/settings.png) 0 0 no-repeat !important;}
+.icn-tags{background: url(../res/icn/tags.png) 0 0 no-repeat !important;}
+.icn-background{background: url(../res/icn/background.png) 0 0 no-repeat !important;}
+.icn-{background: url(../res/icn/.png) 0 0 no-repeat !important;}

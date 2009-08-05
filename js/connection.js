@@ -11,6 +11,14 @@ conn.list = [];
 conn.apiURL = 'http://api.rememberthemilk.com/services/rest/';
 //conn.apiURL = 'http://localhost:12088/api/';
 
+conn.getTaskFromList = function(id){
+	for(var i = 0; i<this.list.length; i++){
+		if(this.list[i].id==id)
+			return this.list[i];
+	}
+	return null;
+}
+
 conn.active = function(){
 	return this.activeCount>0;
 }
@@ -197,7 +205,10 @@ conn.getLocations = function(ok, error){
 				conn.locations.push({
 					id: nl.item(i).getAttribute('id'),
 					name: nl.item(i).getAttribute('name'),
-					address: nl.item(i).getAttribute('address')
+					address: nl.item(i).getAttribute('address'),
+					longitude: nl.item(i).getAttribute('longitude'),
+					latitude: nl.item(i).getAttribute('latitude'),
+					zoom: nl.item(i).getAttribute('zoom')
 				});
 			}
 			if(ok)
@@ -225,6 +236,7 @@ conn.getList = function(listid, ok, error){
 							list_id: list.item(index).getAttribute('id'),
 							series_id: s.getAttribute('id'),
 							name: s.getAttribute('name'),
+							location_id: s.getAttribute('location_id'),
 							source: s.getAttribute('source')
 						};
 						var t = s.getElementsByTagName('task').item(0);
@@ -351,6 +363,31 @@ conn.setLocation = function(timeline, task, location, ok, error){
 		}, error: error});
 };
 
+conn.addNote = function(timeline, task, title, body, ok, error){
+	this.makeQuery({
+		sync: true,
+		url: this.buildURL({
+			timeline: timeline,
+			list_id: task.list_id,
+			taskseries_id: task.series_id,
+			task_id: task.id,
+			note_title: title,
+			note_text: body
+		}, 'rtm.tasks.notes.add'),
+		ok: function(xml){
+			var note = xml.getElementsByTagName('note').item(0);
+			if(note){
+				task.notes.push({
+					id: note.getAttribute('id'),
+					title: note.getAttribute('title'),
+					body: note.firstChild.nodeValue
+				});
+			}
+			if(ok)
+				ok();
+		}, error: error});
+};
+
 conn.setPriority = function(timeline, task, priority, ok, error){
 	this.makeQuery({
 		sync: true,
@@ -412,13 +449,41 @@ sql.init = function(){
 	});
 	this.timeStore = proxy.store;
 	this.timeStore.load();
+	this.backgroundRecord = Ext.data.Record.create([
+		{name: 'taskseries_id', type:'int'},
+		{name: 'background', type:'int'}
+	]);
+	var backgroundProxy = new Ext.data.SqlDB.Proxy(this.conn, 'backgrounds', 'taskseries_id', {
+		recordType: this.backgroundRecord,
+		idIndex: 0
+	});
+	this.backgroundStore = backgroundProxy.store;
+	this.backgroundStore.load();
 };
+
+sql.isBackground = function(seriesID){
+	var rec = this.backgroundStore.getById(seriesID);
+	if(rec)
+		return true;
+	return false;
+}
+
+sql.setBackground = function(seriesID, background){
+	var rec = this.backgroundStore.getById(seriesID);
+	if(rec && !background)
+		this.backgroundStore.remove(rec);
+	if(!rec && background)
+		this.backgroundStore.add(new this.backgroundRecord({
+			taskseries_id: seriesID,
+			background: 1
+		}));
+}
 
 sql.getSeconds = function(taskID){
 	//First, iterate over all records
-	for(var i = 0; i < this.timeStore.getCount(); i++){
-		air.trace('Now in DB: ', this.timeStore.getAt(i).get('task_id'), this.timeStore.getAt(i).get('seconds'));
-	}
+	//for(var i = 0; i < this.timeStore.getCount(); i++){
+	//	air.trace('Now in DB: ', this.timeStore.getAt(i).get('task_id'), this.timeStore.getAt(i).get('seconds'));
+	//}
 	var rec = this.timeStore.getById(taskID);
 	if(rec)
 		return rec.get('seconds');

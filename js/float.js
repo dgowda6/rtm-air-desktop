@@ -9,12 +9,21 @@ var titleDiv = null;
 var timerDiv = null;
 var tagsDiv = null;
 var dueDiv = null;
+var locationDiv = null;
+var locationLink = null;
+var locationURL = null;
+var pauseBtn = null;
+var noPauseBtn = null;
+var paused = false;
 
 Ext.onReady(function(){
+	Ext.QuickTips.init();
+	window.nativeWindow.addEventListener(air.Event.CLOSE, function(){
+		opener.timer.pauseTask(opener.timer.displayTask);
+	});
 	window.nativeWindow.activate();
 	trackProgress = new Ext.ProgressBar({
 		columnWidth: 1
-//		width: 'auto'
 	});
 	var resizePanel = new Ext.Panel({
 		width: 16,
@@ -41,40 +50,71 @@ Ext.onReady(function(){
 		autoHeight: true,
 		items: [trackProgress, resizePanel]
 	});
+	pauseBtn = new Ext.Button({
+		iconCls: 'icn-pause',
+		tooltip: 'Pause',
+		enableToggle: true,
+		toggleHandler: function(button, state){
+			if(state){
+				opener.timer.pauseTask(opener.timer.displayTask, true);
+			}else{
+				opener.timer.startTask(opener.timer.displayTask, true);
+			}
+		}
+	});
+
+	noPauseBtn = new Ext.Button({
+		iconCls: 'icn-background',
+		tooltip: 'Background task',
+		enableToggle: true,
+		toggleHandler: function(b, state){
+			opener.timer.setBackgroundTask(opener.timer.displayTask, state);
+		}
+	});
+
 	bottomBar = new Ext.Toolbar({
 		items:[
-			{
-				text: 'Pause',
+			pauseBtn, {
+				tooltip: 'Done',
+				iconCls: 'icn-complete',
 				handler: function(){
-					air.trace('Pause click');
+					opener.completeTask(opener.timer.displayTask);
+					window.nativeWindow.close();
 				}
 			},{
-				text: 'Done',
+				tooltip: 'Edit',
+				iconCls: 'icn-clock',
 				handler: function(){
-					air.trace('Done click');
-				}
-			},{
-				text: 'Edit',
-				handler: function(){
-					air.trace('Edit click');
-				}
-			}, '->',{
-				text: 'No pause',
-				toggle: true,
-				handler: function(){
+					opener.showDialog({
+						field:{
+							xtype: 'textfield',
+							fieldLabel: 'Enter new time',
+							value: timerDiv.dom.innerHTML
+						},
+						handler: function(data){
+							air.trace('Validate '+data);
+							var arr = data.split(':');
+							var secs = 0;
 
+							for(var i = 0; i<arr.length; i++){
+								secs = secs*60+parseInt(arr[i]);
+							}
+							var task = opener.timer.getTask(opener.timer.displayTask);
+							if(task){
+								task.seconds = secs;
+								timerDiv.dom.innerHTML = opener.timer.secondsToString(task.seconds);
+							}
+
+							return true;
+						}
+					})
 				}
-			}
+			}, '->', noPauseBtn
 		]
 	});
 	var htmlPanel = new Ext.Panel({
 		tools: [
 			{
-				id: 'minimize',
-				handler: function(){
-					window.nativeWindow.close();
-				}
-			},{
 				id: 'unpin',
 				hidden: !opener.settings.get('floatOnTop'),
 				handler: function(e, el, panel){
@@ -92,19 +132,24 @@ Ext.onReady(function(){
 					window.nativeWindow.alwaysInFront = true;
 					opener.settings.set('floatOnTop', true);
 				}
+			},{
+				id: 'close',
+				handler: function(){
+					window.nativeWindow.close();
+				}
 			}
 		],
 		title: 'Current task',
 		region: 'center',
 		bbar: bottomBar,
-		html: '<div id="float-top"><div id="float-title">Title very very long Title very very long Title very very long </div><div id="float-bottom"><div id="float-row"><div id="float-timer">0:00</div><div id="float-right"><div id="float-tags">tag1, tag2, tag1, tag2, tag1, tag2, </div><div id="float-due">Today</div></div></div></div></div>',
+		html: '<div id="float-top"><div id="float-title"></div><div id="float-bottom"><div id="float-row"><div id="float-timer"></div><div id="float-right"><div id="float-tags"></div><div id="float-due"></div><div id="float-location"><a href="#"  id="float-location-link"></a></div></div></div></div></div>',
 		bodyCssClass: 'resizer-bg',
 		border: false,
 		listeners: {
 			render: function(p) {
 				p.getEl().on('mousedown', function(){
 					window.nativeWindow.startMove();
-					return false;
+					return true;
 				});
 			},
 			single: true  // Remove the listener after first invocation
@@ -137,6 +182,12 @@ Ext.onReady(function(){
 	timerDiv = Ext.get('float-timer');
 	tagsDiv = Ext.get('float-tags');
 	dueDiv = Ext.get('float-due');
+	locationDiv = Ext.get('float-location');
+	locationLink = Ext.get('float-location-link');
+	locationLink.on('click', function(){
+		air.navigateToURL(new air.URLRequest(locationURL));
+		return false;
+	})
 	trackProgress.updateProgress(0, 'Disabled');
 	opener.childWindowOpened(window.nativeWindow, window);
 });

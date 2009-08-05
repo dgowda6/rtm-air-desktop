@@ -64,8 +64,10 @@ var openNewWindow = function(config){
 				settings.set(config.id+'Width', event.afterBounds.width);
 				settings.set(config.id+'Height', event.afterBounds.height);
 			});
-			win.moveTo(settings.get(config.id+'Left') || config.left || 10,
-				settings.get(config.id+'Top') || config.top || 10);
+			var left = settings.get(config.id+'Left') || config.left || -1;
+			var top = settings.get(config.id+'Top') || config.top || -1;
+			if(left!=-1 && top!=-1)
+				win.moveTo(left, top);
 		}
 	}
 	win.instance.alwaysInFront = config.onTop || false;
@@ -84,7 +86,7 @@ Date.precompileFormats = function(s){
     }
 }
 
-Date.precompileFormats("Y-m-d\\TH:i:s\\Z|Z|n/j|g:i a|l|Y|Y-m-d|z");
+Date.precompileFormats("Y-m-d\\TH:i:s\\Z|Z|n/j|g:i a|l|Y|Y-m-d|z|n/j/y g:i a");
 
 Ext.menu.Item.prototype.itemTpl=new Ext.XTemplate(
     '<a id="{id}" class="{cls}" hidefocus="true" unselectable="on" href="{href}"',
