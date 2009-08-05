@@ -21,6 +21,7 @@ var trackWorkTime = null;
 var workTimePeriod = null;
 var restPeriod = null;
 var inactivityDelay = null;
+var openPaused = null;
 
 Ext.onReady(function(){
 
@@ -245,7 +246,11 @@ Ext.onReady(function(){
 		value: opener.settings.get('inactivityDelay') || 30
 	});
 
-	air.trace('trackWorkTime: '+trackWorkTime.getValue());
+	openPaused = new Ext.form.Checkbox({
+		boxLabel: 'Open task in floating win paused',
+		checked: opener.settings.get('openPaused') || false
+	});
+//	air.trace('trackWorkTime: '+trackWorkTime.getValue());
 	if(!opener.settings.get('trackWorkTime')){
 		trackWorkTimeChanged(false);
 	}
@@ -259,7 +264,7 @@ Ext.onReady(function(){
 		items:[
 			userButton, showListCombo, listsCombo, locationsCombo, showReminder, reminderMinutes,
 			storeAsEstimate, storeAsNote,
-			trackWorkTime, workTimePeriod, restPeriod, inactivityDelay
+			trackWorkTime, workTimePeriod, restPeriod, inactivityDelay, openPaused
 		],
 		buttons:[
 			{
@@ -282,6 +287,7 @@ Ext.onReady(function(){
 					opener.settings.set('workTimePeriod', workTimePeriod.getValue());
 					opener.settings.set('restPeriod', restPeriod.getValue());
 					opener.settings.set('inactivityDelay', inactivityDelay.getValue());
+					opener.settings.set('openPaused', openPaused.getValue());
 
 					window.nativeWindow.close();
 					opener.reloadList();

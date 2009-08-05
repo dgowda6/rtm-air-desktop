@@ -11,7 +11,7 @@ var trackPanel = null;
 var trackProgress = null;
 var titlePrefix = 'RTM Desktop: ';
 
-var gridTpl = new Ext.XTemplate('<tpl for="."><div class="x-task-item x-task-priority{priority}"><div class="x-task-timer x-task-timer-odd-{timer_odd}">{timer}</div><div class="x-task-title x-task-title-{overdue}">{title}</div><div class="x-task-tags">{tags}</div><div class="x-task-due">{due_text}</div><div style="clear: both;"></div></div></tpl>');
+var gridTpl = new Ext.XTemplate('<tpl for="."><div class="x-task-item x-task-priority{priority}"><div class="x-task-timer x-task-timer-odd-{timer_odd}">{timer}</div><div class="x-task-title x-task-title-{overdue}">{title}</div><div style="clear: both;"></div><div class="x-task-tags">{tags}</div><div class="x-task-due">{due_text}</div><div style="clear: both;"></div></div></tpl>');
 
 var findInGrid = function(taskID){
 	for(var i = 0; i<gridStore.getCount(); i++){
@@ -156,7 +156,7 @@ var reloadList = function(){
 	conn.getList(settings.get('showList'), function(list){
 		window.nativeWindow.title = titlePrefix;
 		for(var l in conn.lists){
-			air.trace(conn.lists[l].name, conn.lists[l].id, settings.get('showList'));
+//			air.trace(conn.lists[l].name, conn.lists[l].id, settings.get('showList'));
 			if(conn.lists[l].id==settings.get('showList'))
 				window.nativeWindow.title = titlePrefix+conn.lists[l].name;
 		}
@@ -199,6 +199,7 @@ var reloadList = function(){
 			dueDate = dueDate.add(Date.SECOND, task.priority);
 			gridStore.add(new Ext.data.Record({
 				id: task.id,
+				series_id: task.series_id,
 				title: escapeHTML(task.name),
 				due: dueDate,
 				due_text: due,
@@ -229,18 +230,107 @@ var showFloatWin = function(task){
 		height: 160,
 		afterOpen: function(win){
 //			air.trace('Window reactivated', task.name, task.id, win.window.titleDiv.dom.innerHTML);
+			timer.pauseTask(timer.displayTask);
 			timer.displayTask = task.get('id');
-			timer.startTask(task.get('id'));
+			var t = timer.startTask(task.get('id'));
+			if(!timer.trackWorkTime){
+				win.window.trackProgress.updateProgress(0, 'Disabled');
+				win.window.trackProgress.setDisabled(true);
+			}
 			timer.showProgress();
 			win.window.titleDiv.dom.innerHTML = task.get('title');
 			win.window.tagsDiv.dom.innerHTML = task.get('tags');
 			win.window.dueDiv.dom.innerHTML = task.get('due_text');
+			win.window.pauseBtn.toggle(t.paused, true);
+			win.window.noPauseBtn.toggle(t.background, true);
+			win.window.timerDiv.dom.innerHTML = timer.secondsToString(t.seconds);
+			var t = conn.getTaskFromList(task.get('id'));
+			var loc = '';
+			if(t){
+				for(var i = 0; i<conn.locations.length; i++){
+					if(conn.locations[i].id==t.location_id){
+						win.window.locationURL = 'http://maps.google.com/?ll='+conn.locations[i].latitude+','+conn.locations[i].longitude+'&z='+conn.locations[i].zoom;
+						loc = conn.locations[i].name;
+					}
+				}
+			}
+			win.window.locationLink.dom.innerHTML = loc;
 		}
 	});
 
 }
 
+var showSettingsWin = function(){
+	openNewWindow({
+		id: 'settings',
+		width: 560,
+		height: 430,
+		stateful: true,
+		src: 'settings.html'
+	});
+};
+
+var secondsToEstimate = function(seconds){
+	var secs = seconds;
+	var estString = '';
+	var hours = Math.floor(secs/3600);
+	secs -= hours*3600;
+	var mins = Math.round(secs/60);
+	air.trace('completeTask:', hours, mins, secs, seconds);
+	if(mins==0 && hours==0)
+		mins = 1;
+	if(mins>10 || hours>0){
+		mins = 5*Math.round(mins/5);
+	}
+	if(mins==60){
+		hours++;
+		mins = 0;
+	}
+	if(hours>0)
+		estString = hours+' hr ';
+	if(mins>0)
+		estString += mins+' min';
+	air.trace('completeTask:', hours, mins, estString);
+	return estString.trim();
+}
+
+var completeTask = function(taskID){
+	var task = findInGrid(taskID);
+	var t = conn.getTaskFromList(taskID);
+	if(!task || !t)
+		return;
+	var timerTask = timer.getTask(taskID);
+	conn.createTimeline(function(tl){
+		conn.complete(tl, t, function(){
+			var estString = secondsToEstimate(timerTask.seconds);
+			if(settings.get('storeAsEstimate') && timerTask.seconds>0){
+				conn.setEstimate(tl, t, estString);
+			}
+			var d = new Date();
+			if(settings.get('storeAsNote') && timerTask.seconds>0){
+				conn.addNote(tl, t, d.format('n/j/y g:i a'), 'Task completed in '+estString);
+			}
+			gridStore.remove(task);
+			timer.completeTask(taskID);
+		});
+	});
+}
+
+var showDialog = function(config){
+	openNewWindow({
+		id: 'dialog',
+		width: 500,
+		height: 115,
+		stateful: true,
+		src: 'dialog.html',
+		afterOpen: function(win, created){
+			if(created)
+				win.window.init(config);
+		}
+	});
+}
 Ext.onReady(function(){
+	Ext.QuickTips.init();
 	var mainWin = new Ext.air.NativeWindow({
 		id: 'mainWindow',
 		instance: window.nativeWindow,
@@ -250,11 +340,6 @@ Ext.onReady(function(){
 		height: settings.get('mainHeight') || defaultState.mainHeight
 	});
 	sql.init();
-	air.trace('select#0', sql.getSeconds(1));
-	sql.saveSeconds(1, sql.getSeconds(1)+1);
-	air.trace('select#1', sql.getSeconds(1));
-	sql.deleteSeconds(1);
-	air.trace('select#2', sql.getSeconds(1));
 	conn.authToken = settings.get('authToken') || '';
 	air.trace('Token from settings: '+conn.authToken);
 
@@ -288,10 +373,12 @@ Ext.onReady(function(){
 		}
 	});
 	var completeBtn = new Ext.Button({
-		text: 'Complete',
+		tooltip: 'Complete',
+		iconCls: 'icn-complete',
 		handler: function(){
 			if(selectionModel.getCount()>0){
 				var id = selectionModel.getSelected().get('id');
+				completeTask(id);
 				for (var i = 0; i < conn.list.length; i++) {
 					var task = conn.list[i];
 					if(task.id==id){
@@ -307,24 +394,44 @@ Ext.onReady(function(){
 		},
 		enabled: false
 	});
+	var editBtn = new Ext.Button({
+		tooltip: 'Edit',
+		iconCls: 'icn-edit',
+		menu: [
+			{
+				text: 'Name'
+			},{
+				text: 'List'
+			},{
+				text: 'Location'
+			},{
+				text: 'Tags'
+			},{
+				text: 'Due date'
+			},{
+				text: 'Estimate'
+			}
+		]
+	});
 	toolbar = new Ext.Toolbar({
 		region: 'north',
 		items: [
 			{
-				text: 'Reload',
+				tooltip: 'Reload',
+				iconCls: 'icn-reload',
 				handler: function(){
 					reloadList();
 				}
-			}, completeBtn, '->',{
-				text: 'Settings',
+			}, completeBtn, editBtn, '->',{
+				tooltip: 'Settings',
+				iconCls: 'icn-settings',
 				handler: function(){
-					openNewWindow({
-						id: 'settings',
-						src: 'settings.html'
-					});
+					showSettingsWin();
 				}
 			},{
-				text: 'Search',
+				tooltip: 'Search',
+				enableToggle: true,
+				iconCls: 'icn-search',
 				handler: function(){
 					searchPanel.toggleCollapse(false);
 					viewport.syncSize();
@@ -379,7 +486,7 @@ Ext.onReady(function(){
 		items: [trackProgress]
 	});
 	gridStore = new Ext.data.ArrayStore({
-		fields: ['id', 'title', 'tags', 'due', 'due_text', 'repeated', 'estimate', 'priority', 'exec_time', 'exec_time_text', 'overdue', 'timer', 'timer_odd'],
+		fields: ['id', 'series_id', 'title', 'tags', 'due', 'due_text', 'repeated', 'estimate', 'priority', 'exec_time', 'exec_time_text', 'overdue', 'timer', 'timer_odd'],
 		sortInfo: {
 			field: 'due',
 			direction: 'DESC'
@@ -431,6 +538,8 @@ Ext.onReady(function(){
 	});
 	mainWin.on('closing', function(event){
 		settings.saveState();
+		//Save all timers
+		timer.saveAllTimes();
 		air.NativeApplication.nativeApplication.exit(0);
 	});
 	mainWin.moveTo(settings.get('mainLeft') || defaultState.mainLeft, settings.get('mainTop') || defaultState.mainTop);
@@ -481,6 +590,7 @@ Ext.onReady(function(){
 		});
 		conn.getLocations();
 	}, function(code, message){
+		showSettingsWin();
 		air.trace('Check failed, '+code+':'+message);
 	});
 });
@@ -500,19 +610,35 @@ timer.odd = false;
 timer.isUserActive = true;
 timer.runningTasks = {};
 timer.displayTask = 0;
+timer.saveSeconds = 0;
 
-timer.startTask = function(taskID){
+timer.startTask = function(taskID, force){
+	var row = findInGrid(taskID);
 	var task = timer.runningTasks[taskID] || {
-		seconds: sql.getSeconds(taskID)
+		seconds: sql.getSeconds(taskID),
+		background: row? sql.isBackground(row.get('series_id')): false,
+		paused: settings.get('openPaused') || false
 	};
+	task.paused = force? false: task.paused;
 	timer.runningTasks[taskID] = task;
+	return task;
 };
 
-timer.pauseTask = function(taskID){
+timer.getTask = function(taskID){
+	return timer.runningTasks[taskID] || {
+		seconds: sql.getSeconds(taskID),
+		background: row? sql.isBackground(row.get('series_id')): false,
+		paused: settings.get('openPaused') || false
+	};
+};
+
+timer.pauseTask = function(taskID, force){
 	var task = timer.runningTasks[taskID];
 	if(task){
+		if(task.background && !force)
+			return;
 		sql.saveSeconds(taskID, task.seconds);
-		timer.runningTasks[taskID] = null;
+		task.paused = true;
 	}
 	var row = findInGrid(taskID);
 	if(row){
@@ -523,16 +649,28 @@ timer.pauseTask = function(taskID){
 timer.completeTask = function(taskID){
 	var task = timer.runningTasks[taskID];
 	if(task){
-		timer.pauseTask(taskID);
+		timer.pauseTask(taskID, true);
+		timer.runningTasks[taskID] = null;
 		sql.deleteSeconds(taskID);
 		//Save here work time
 	}
 }
 
+timer.setBackgroundTask = function(taskID, background){
+	var row = findInGrid(taskID);
+	var task = timer.runningTasks[taskID];
+	if(row)
+		sql.setBackground(row.get('series_id'), background);
+	if(task){
+		task.background = background;
+	}
+}
+
 timer.secondsToString = function(seconds){
-	var mins = Math.floor(seconds/60);
-	var secs = seconds-mins*60;
-	return mins+':'+(secs<10?'0':'')+secs;
+	var hours = Math.floor(seconds/3600);
+	var mins = Math.floor((seconds-hours*3600)/60);
+	var secs = seconds-mins*60-hours*3600;
+	return (hours>0? hours+':': '')+(hours>0 && mins<10? '0': '')+mins+':'+(secs<10?'0':'')+secs;
 }
 
 timer.updateProgress = function(value, seconds, text){
@@ -543,22 +681,43 @@ timer.updateProgress = function(value, seconds, text){
 //	air.trace('update', value, text+mins+':'+(secs<10?'0':'')+secs);
 }
 
+timer.saveAllTimes = function(){
+	for(var taskID in timer.runningTasks){
+		if(!timer.runningTasks[taskID])
+			continue;
+		var seconds = timer.runningTasks[taskID].seconds;
+		sql.saveSeconds(taskID, seconds);
+	}
+}
+
 timer.oneSecond = function(){
 	//Add seconds to all running tasks
+	timer.odd = !timer.odd;
+	timer.saveSeconds++;
+	var saveTime = false;
+	if(timer.saveSeconds>=30){
+		saveTime = true;
+		timer.saveSeconds = 0;
+	}
 	var floatWin = getChildWindow('float');
 	for(var taskID in timer.runningTasks){
 		if(!timer.runningTasks[taskID])
 			continue;
-		if(!timer.isUserActive)
+		if(!timer.isUserActive && !timer.runningTasks[taskID].background)
+			continue;
+		if(timer.runningTasks[taskID].paused)
 			continue;
 		var seconds = timer.runningTasks[taskID].seconds+1;
 		timer.runningTasks[taskID].seconds = seconds;
+		if(saveTime)
+			sql.saveSeconds(taskID, seconds);
 		//Find task in grid
 		var row = findInGrid(taskID);
 		if(row){
 			row.set('timer', '['+timer.secondsToString(seconds)+']');
+			row.set('timer_odd', timer.odd? 0: 1);
 		}
-		if(timer.displayTask==taskID && floatWin){
+		if(timer.displayTask==taskID && floatWin && floatWin.window.timerDiv){
 			floatWin.window.timerDiv.dom.innerHTML = timer.secondsToString(seconds);
 		}
 	}
@@ -587,13 +746,14 @@ timer.oneSecond = function(){
 };
 
 timer.showProgress = function(){
+	if(!timer.trackWorkTime)
+		return;
 	switch(timer.action){
 		case timer.TYPE_USER_ACTIVE:
 			timer.updateProgress(timer.workSeconds/timer.workTimePeriod, timer.workSeconds, 'Work time: ');
 			break;
 		case timer.TYPE_USER_OVERWORK:
 			timer.updateProgress(timer.odd? 0: 1, timer.workSeconds-timer.workTimePeriod, 'Overwork time: -');
-			timer.odd = !timer.odd;
 			break;
 		case timer.TYPE_USER_BREAK_OVERWORK:
 		case timer.TYPE_USER_BREAK_YEARLY:
@@ -601,7 +761,6 @@ timer.showProgress = function(){
 			break;
 		case timer.TYPE_USER_BREAK_WAIT_WORK:
 			timer.updateProgress(timer.odd? 0: 1, timer.idleSeconds, 'Rest time: ');
-			timer.odd = !timer.odd;
 			break;
 	}
 }
@@ -612,13 +771,21 @@ timer.init = function(){
 	this.workTimePeriod = (settings.get('workTimePeriod') || 50)*60;
 	this.restPeriod = (settings.get('restPeriod') || 10)*60;
 	air.NativeApplication.nativeApplication.idleThreshold = settings.get('inactivityDelay') || 30;
+	var floatWin = getChildWindow('float');
 	if(!this.trackWorkTime){
 		trackProgress.updateProgress(0, 'Disabled');
+		if(floatWin){
+			floatWin.window.trackProgress.updateProgress(0, 'Disabled');
+			floatWin.window.trackProgress.setDisabled(true);
+		}
 		trackPanel.setDisabled(true);
 	}else{
 		if(!prevTrack){
 			this.action = this.TYPE_USER_ACTIVE;
 			this.workSeconds = 0;
+		}
+		if(floatWin){
+			floatWin.window.trackProgress.setDisabled(false);
 		}
 		trackPanel.setDisabled(false);
 		this.userActive();
