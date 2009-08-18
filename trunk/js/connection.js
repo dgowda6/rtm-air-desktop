@@ -5,7 +5,10 @@ conn.start = null;
 conn.end = null;
 conn.authToken = '';
 conn.lists = [];
+conn.listsUpdated = null;
 conn.locations = [];
+conn.timeline = null;
+conn.transactions = [];
 conn.activeCount = 0;
 conn.list = [];
 conn.apiURL = 'http://api.rememberthemilk.com/services/rest/';
@@ -82,11 +85,11 @@ conn.makeQuery = function(config){
 //		air.trace(req.readyState);
         if (req.readyState == 4) {
 			conn.activeCount--;
-			air.trace('response text: ',req.responseText);
+//			air.trace('response text: ',req.responseText);
             var xml = req.responseXML;
 			if(!xml){
 				var code = 1;
-				var msg = 'Can\'t connect to RTM host, please check connection settings';
+				var msg = 'Can\'t connect to RTM host';
 				if(config.error)
 					config.error(code, msg);
 				if(conn.end && conn.activeCount==0)
@@ -188,6 +191,8 @@ conn.getLists = function(ok, error){
 					});
 				}
 			}
+			if(conn.listsUpdated)
+				conn.listsUpdated(conn.lists);
 			if(ok)
 				ok(conn.lists);
 		}, error: error
@@ -217,11 +222,12 @@ conn.getLocations = function(ok, error){
 	});
 };
 
-conn.getList = function(listid, ok, error){
+conn.getList = function(listid, searchString, ok, error){
 	conn.list = [];
 	this.makeQuery({
 		url: this.buildURL({
-			list_id: listid
+			list_id: listid,
+			filter: searchString
 		}, 'rtm.tasks.getList'),
 		ok: function(xml){
 			var list = xml.getElementsByTagName('list');
@@ -287,13 +293,46 @@ conn.getList = function(listid, ok, error){
 	})
 };
 
+conn.rollback = function(ok){
+	for(var i = conn.transactions.length-1; i>=0; i--){
+		air.trace('Rollback transaction ', i, conn.transactions[i]);
+		this.makeQuery({
+			sync: true,
+			url: this.buildURL({
+				timeline: conn.timeline,
+				transaction_id: conn.transactions[i]
+			}, 'rtm.transactions.undo')
+		});
+	}
+	conn.transactions = [];
+	if(ok)
+		ok();
+}
+
+conn.addTransaction = function(xml){
+//	air.trace('conn.addTransaction check xml with', conn.timeline);
+	if(conn.timeline){
+		var tr = xml.getElementsByTagName('transaction');
+		if(tr.length<1)
+			return;
+//		if(tr.item(0).getAttribute('undoable')!='1')
+//			return;
+		conn.transactions.push(tr.item(0).getAttribute('id'));
+		air.trace('added transaction '+conn.transactions[conn.transactions.length-1], 'total', conn.transactions.length);
+	}
+}
+
 conn.createTimeline = function(ok, error){
 	this.makeQuery({
-		sync: true,
+		sync: false,
 		url: this.buildURL({}, 'rtm.timelines.create'),
 		ok: function(xml){
-			if(ok)
-				ok(xml.getElementsByTagName('timeline').item(0).firstChild.nodeValue);
+			conn.timeline = xml.getElementsByTagName('timeline').item(0).firstChild.nodeValue;
+			conn.transactions = [];
+			air.trace('New timeline has started', conn.timeline);
+			if(ok){
+				ok(conn.timeline);
+			}
 		}, error: error});
 };
 
@@ -306,11 +345,29 @@ conn.addTask = function(timeline, name, list_id, ok, error){
 			parse: true
 		}, 'rtm.tasks.add'),
 		ok: function(xml){
+			conn.addTransaction(xml);
 			if(ok)
 				ok({
 					id: xml.getElementsByTagName('task').item(0).getAttribute('id'),
 					series_id: xml.getElementsByTagName('taskseries').item(0).getAttribute('id'),
 					list_id: xml.getElementsByTagName('list').item(0).getAttribute('id')
+				});
+		}, error: error});
+};
+
+conn.addSmartList = function(timeline, name, filter, ok, error){
+	this.makeQuery({
+		url: this.buildURL({
+			timeline: timeline,
+			name: name,
+			filter: filter
+		}, 'rtm.lists.add'),
+		ok: function(xml){
+			conn.addTransaction(xml);
+			if(ok)
+				ok({
+					id: xml.getElementsByTagName('list').item(0).getAttribute('id'),
+					name: xml.getElementsByTagName('list').item(0).getAttribute('name')
 				});
 		}, error: error});
 };
@@ -326,6 +383,7 @@ conn.setTags = function(timeline, task, tags, ok, error){
 			tags: tags
 		}, 'rtm.tasks.setTags'),
 		ok: function(xml){
+			conn.addTransaction(xml);
 			if(ok)
 				ok();
 		}, error: error});
@@ -342,6 +400,7 @@ conn.setEstimate = function(timeline, task, estimate, ok, error){
 			estimate: estimate
 		}, 'rtm.tasks.setEstimate'),
 		ok: function(xml){
+			conn.addTransaction(xml);
 			if(ok)
 				ok();
 		}, error: error});
@@ -358,6 +417,7 @@ conn.setLocation = function(timeline, task, location, ok, error){
 			location_id: location
 		}, 'rtm.tasks.setLocation'),
 		ok: function(xml){
+			conn.addTransaction(xml);
 			if(ok)
 				ok();
 		}, error: error});
@@ -383,6 +443,7 @@ conn.addNote = function(timeline, task, title, body, ok, error){
 					body: note.firstChild.nodeValue
 				});
 			}
+			conn.addTransaction(xml);
 			if(ok)
 				ok();
 		}, error: error});
@@ -399,6 +460,7 @@ conn.setPriority = function(timeline, task, priority, ok, error){
 			priority: priority
 		}, 'rtm.tasks.setPriority'),
 		ok: function(xml){
+			conn.addTransaction(xml);
 			if(ok)
 				ok();
 		}, error: error});
@@ -415,6 +477,91 @@ conn.setRecurrence = function(timeline, task, repeat, ok, error){
 			repeat: repeat
 		}, 'rtm.tasks.setRecurrence'),
 		ok: function(xml){
+			conn.addTransaction(xml);
+			if(ok)
+				ok();
+		}, error: error});
+};
+
+conn.setName = function(timeline, task, name, ok, error){
+	this.makeQuery({
+		sync: true,
+		url: this.buildURL({
+			timeline: timeline,
+			list_id: task.list_id,
+			taskseries_id: task.series_id,
+			task_id: task.id,
+			name: name
+		}, 'rtm.tasks.setName'),
+		ok: function(xml){
+			conn.addTransaction(xml);
+			if(ok)
+				ok();
+		}, error: error});
+};
+
+conn.setDueDate = function(timeline, task, due, ok, error){
+	this.makeQuery({
+		sync: true,
+		url: this.buildURL({
+			timeline: timeline,
+			list_id: task.list_id,
+			taskseries_id: task.series_id,
+			task_id: task.id,
+			parse: 1,
+			due: due
+		}, 'rtm.tasks.setDueDate'),
+		ok: function(xml){
+			conn.addTransaction(xml);
+			if(ok)
+				ok();
+		}, error: error});
+};
+
+conn.deleteTask = function(timeline, task, ok, error){
+	this.makeQuery({
+		sync: true,
+		url: this.buildURL({
+			timeline: timeline,
+			list_id: task.list_id,
+			taskseries_id: task.series_id,
+			task_id: task.id
+		}, 'rtm.tasks.delete'),
+		ok: function(xml){
+			conn.addTransaction(xml);
+			if(ok)
+				ok();
+		}, error: error});
+};
+
+conn.postpone = function(timeline, task, ok, error){
+	this.makeQuery({
+		sync: true,
+		url: this.buildURL({
+			timeline: timeline,
+			list_id: task.list_id,
+			taskseries_id: task.series_id,
+			task_id: task.id
+		}, 'rtm.tasks.postpone'),
+		ok: function(xml){
+			conn.addTransaction(xml);
+			if(ok)
+				ok();
+		}, error: error});
+};
+
+conn.setList = function(timeline, task, list_id, ok, error){
+	this.makeQuery({
+		sync: true,
+		url: this.buildURL({
+			timeline: timeline,
+			from_list_id: task.list_id,
+			taskseries_id: task.series_id,
+			task_id: task.id,
+			to_list_id: list_id
+		}, 'rtm.tasks.moveTo'),
+		ok: function(xml){
+			conn.addTransaction(xml);
 			if(ok)
 				ok();
 		}, error: error});
@@ -430,6 +577,7 @@ conn.complete = function(timeline, task, ok, error){
 			task_id: task.id
 		}, 'rtm.tasks.complete'),
 		ok: function(xml){
+			conn.addTransaction(xml);
 			if(ok)
 				ok();
 		}, error: error});
