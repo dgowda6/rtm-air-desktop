@@ -27,12 +27,29 @@ var escapeHTML = function(s){
 	return res;
 };
 
-
+var checkWindowVisible = function(win){
+	air.trace('checkWindowVisible', win.instance.x, win.instance.y, win.instance.width, win.instance.height);
+	var ok = false;
+	for(var i = 0; i<air.Screen.screens.length; i++){
+		var sc = air.Screen.screens[i];
+		air.trace('Screen', i, sc.visibleBounds.x, sc.visibleBounds.y, sc.visibleBounds.width, sc.visibleBounds.height);
+		if(win.instance.x>=sc.visibleBounds.x && win.instance.y>=sc.visibleBounds.y &&
+		   win.instance.x+win.instance.width<=sc.visibleBounds.x+sc.visibleBounds.width &&
+		   win.instance.y+win.instance.height<=sc.visibleBounds.y+sc.visibleBounds.height){
+			ok = true;
+		}
+	}
+	if(!ok){
+		win.moveTo(air.Screen.mainScreen.visibleBounds.x+(air.Screen.mainScreen.visibleBounds.width-win.instance.width)/2,
+				   air.Screen.mainScreen.visibleBounds.y+(air.Screen.mainScreen.visibleBounds.height-win.instance.height)/2);
+	}
+}
 var openNewWindow = function(config){
 	var win = Ext.air.NativeWindowManager.get(config.id);
 	if(win) {
 		win.instance.orderToFront();
 		win.instance.activate();
+		checkWindowVisible(win);
 		if(windows[config.id] && config.afterOpen){
 			config.afterOpen(windows[config.id], false);
 		}
@@ -68,6 +85,7 @@ var openNewWindow = function(config){
 			var top = settings.get(config.id+'Top') || config.top || -1;
 			if(left!=-1 && top!=-1)
 				win.moveTo(left, top);
+			checkWindowVisible(win);
 		}
 	}
 	win.instance.alwaysInFront = config.onTop || false;

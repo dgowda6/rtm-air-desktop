@@ -7,6 +7,7 @@ Ext.onReady(function(){
 var init = function(config){
 	window.nativeWindow.title = config.title || (config.field.fieldLabel+':');
 	config.field.name = 'field';
+	config.field.enableKeyEvents = true;
 	var form = new Ext.form.FormPanel({
 		frame: 'true',
 		labelWidth: 200,
@@ -18,8 +19,15 @@ var init = function(config){
 			{
 				text: 'Ok',
 				handler: function(){
-					if(config.handler(form.getForm().getValues().field))
+					var data = form.getForm().getValues().field;
+					form.setDisabled(true);
+					if(config.handler(data))
 						window.nativeWindow.close();
+					else{
+						form.setDisabled(false);
+						window.nativeWindow.activate();
+						form.items.itemAt(0).focus(true, 10);
+					}
 				}
 			},{
 				text: 'Cancel',
@@ -33,4 +41,21 @@ var init = function(config){
 		layout: 'fit',
 		items: form
 	});
+	form.items.itemAt(0).on('keydown', function(item, event){
+		if(event.getKey()==27){
+			window.nativeWindow.close();
+		}
+		if(event.getKey()==Ext.EventObject.ENTER){
+			var data = form.getForm().getValues().field;
+			form.setDisabled(true);
+			if(config.handler(data))
+				window.nativeWindow.close();
+			else{
+				form.setDisabled(false);
+				window.nativeWindow.activate();
+				form.items.itemAt(0).focus(true, 10);
+			}
+		}
+	});
+	form.items.itemAt(0).focus(true, 10);
 }

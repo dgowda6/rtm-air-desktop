@@ -22,6 +22,7 @@ var workTimePeriod = null;
 var restPeriod = null;
 var inactivityDelay = null;
 var openPaused = null;
+var updateMinutes = null;
 
 Ext.onReady(function(){
 
@@ -168,6 +169,7 @@ Ext.onReady(function(){
             'text'
         ]
 	});
+
 	locationsCombo = new Ext.form.ComboBox({
 		store: locationsStore,
 		editable: false,
@@ -179,6 +181,13 @@ Ext.onReady(function(){
 		fieldLabel: 'Default location for new tasks'
 	});
 
+	updateMinutes = new Ext.form.NumberField({
+		minValue: 1,
+		maxValue: 240,
+		fieldLabel: 'Update list interval, in minutes',
+		increment: 1,
+		value: opener.settings.get('updateMinutes') || 15
+	});
 
 	reminderMinutes = new Ext.form.NumberField({
 		minValue: 1,
@@ -262,7 +271,7 @@ Ext.onReady(function(){
 		anchor: '100%'
 		},
 		items:[
-			userButton, showListCombo, listsCombo, locationsCombo, showReminder, reminderMinutes,
+			userButton, updateMinutes, showListCombo, listsCombo, locationsCombo, showReminder, reminderMinutes,
 			storeAsEstimate, storeAsNote,
 			trackWorkTime, workTimePeriod, restPeriod, inactivityDelay, openPaused
 		],
@@ -274,6 +283,7 @@ Ext.onReady(function(){
 						return;
 
 					opener.settings.set('defaultList', listsCombo.getValue());
+					opener.settings.set('updateMinutes', updateMinutes.getValue());
 					opener.settings.set('showList', showListCombo.getValue());
 					opener.settings.set('defaultLocation', locationsCombo.getValue());
 
@@ -290,6 +300,9 @@ Ext.onReady(function(){
 					opener.settings.set('openPaused', openPaused.getValue());
 
 					window.nativeWindow.close();
+					opener.updateTask.interval = (updateMinutes.getValue() || 15)*60*1000;
+					opener.currentList = showListCombo.getValue();
+					opener.conn.listsUpdated(opener.conn.lists);
 					opener.reloadList();
 					opener.timer.init();
 				}

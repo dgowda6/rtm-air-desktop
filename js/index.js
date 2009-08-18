@@ -10,6 +10,11 @@ var statusbar = null;
 var trackPanel = null;
 var trackProgress = null;
 var titlePrefix = 'RTM Desktop: ';
+var selectionModel = null;
+var searchString = null;
+var listButton = null;
+var currentList = null;
+var updateTask = null;
 
 var gridTpl = new Ext.XTemplate('<tpl for="."><div class="x-task-item x-task-priority{priority}"><div class="x-task-timer x-task-timer-odd-{timer_odd}">{timer}</div><div class="x-task-title x-task-title-{overdue}">{title}</div><div style="clear: both;"></div><div class="x-task-tags">{tags}</div><div class="x-task-due">{due_text}</div><div style="clear: both;"></div></div></tpl>');
 
@@ -152,8 +157,11 @@ var reloadByTimer = function(){
 }
 
 var reloadList = function(){
+	var prevID = null;
+	if(selectionModel.getCount()>0)
+		prevID = selectionModel.getSelected().get('id');
 	window.nativeWindow.title = titlePrefix+'Loading...';
-	conn.getList(settings.get('showList'), function(list){
+	conn.getList(searchString? null: currentList, searchString, function(list){
 		window.nativeWindow.title = titlePrefix;
 		for(var l in conn.lists){
 //			air.trace(conn.lists[l].name, conn.lists[l].id, settings.get('showList'));
@@ -190,6 +198,7 @@ var reloadList = function(){
 					overdue = 2;
 				if(task.hasTime)
 					due += ' '+task.due.format('g:i a');
+				task.due_text = due;
 			}else{
 
 			}
@@ -210,6 +219,9 @@ var reloadList = function(){
 //			air.trace('Adding', task.name, dueDate);
 		}
 		gridStore.sort('due', 'ASC');
+		if(prevID){
+			selectionModel.selectRecords([findInGrid(prevID)]);
+		}
 	}, function(){
 		gridStore.removeAll();
 	}, function(){
@@ -264,7 +276,7 @@ var showSettingsWin = function(){
 	openNewWindow({
 		id: 'settings',
 		width: 560,
-		height: 430,
+		height: 540,
 		stateful: true,
 		src: 'settings.html'
 	});
@@ -300,9 +312,9 @@ var completeTask = function(taskID){
 	if(!task || !t)
 		return;
 	var timerTask = timer.getTask(taskID);
+	var estString = secondsToEstimate(timerTask.seconds);
 	conn.createTimeline(function(tl){
 		conn.complete(tl, t, function(){
-			var estString = secondsToEstimate(timerTask.seconds);
 			if(settings.get('storeAsEstimate') && timerTask.seconds>0){
 				conn.setEstimate(tl, t, estString);
 			}
@@ -329,6 +341,227 @@ var showDialog = function(config){
 		}
 	});
 }
+
+var doSetName = function(){
+	if(selectionModel.getCount()<=0)
+		return;
+	var t = conn.getTaskFromList(selectionModel.getSelected().get('id')) || {};
+	showDialog({
+		field:{
+			xtype: 'textfield',
+			fieldLabel: 'Enter new task name',
+			value: t.name
+		},
+		handler: function(data){
+			conn.createTimeline(function(tl){
+				conn.setName(tl, t, data, reloadList);
+			});
+			return true;
+		}
+	})
+};
+
+var doSetList = function(){
+	if(selectionModel.getCount()<=0)
+		return;
+	var t = conn.getTaskFromList(selectionModel.getSelected().get('id')) || {};
+	var list = '';
+	for(var i = 0; i<conn.lists.length; i++){
+		if(conn.lists[i].id==t.list_id)
+			list = conn.lists[i].name;
+	}
+	showDialog({
+		field:{
+			xtype: 'textfield',
+			fieldLabel: 'Enter new list',
+			value: list
+		},
+		handler: function(data){
+			for(var i = 0; i<conn.lists.length; i++){
+				if(conn.lists[i].name.toLowerCase().indexOf(data.toLowerCase())==0){
+					conn.createTimeline(function(tl){
+						conn.setList(tl, t, conn.lists[i].id, reloadList);
+					});
+					return true;
+				}
+			}
+			showError('Can\'t find list '+data);
+			return false;
+		}
+	})
+};
+
+var doSetLocation = function(){
+	if(selectionModel.getCount()<=0)
+		return;
+	var t = conn.getTaskFromList(selectionModel.getSelected().get('id')) || {};
+	var location = '';
+	for(var i = 0; i<conn.locations.length; i++){
+		if(conn.locations[i].id==t.location_id)
+			location = conn.locations[i].name;
+	}
+	showDialog({
+		field:{
+			xtype: 'textfield',
+			fieldLabel: 'Enter new location',
+			value: location
+		},
+		handler: function(data){
+			if(!data || data.trim()==''){
+				conn.createTimeline(function(tl){
+					conn.setLocation(tl, t, null, reloadList);
+				});
+				return true;
+			}
+			for(var i = 0; i<conn.locations.length; i++){
+				if(conn.locations[i].name.toLowerCase().indexOf(data.toLowerCase())==0){
+					conn.createTimeline(function(tl){
+						conn.setLocation(tl, t, conn.locations[i].id, reloadList);
+					});
+					return true;
+				}
+			}
+			showError('Can\'t find location '+data);
+			return false;
+		}
+	})
+};
+
+var doSetTags = function(){
+	if(selectionModel.getCount()<=0)
+		return;
+	var t = conn.getTaskFromList(selectionModel.getSelected().get('id')) || {};
+	showDialog({
+		field:{
+			xtype: 'textfield',
+			fieldLabel: 'Enter comma separated tags',
+			value: t.tags.join(', ')
+		},
+		handler: function(data){
+			conn.createTimeline(function(tl){
+				conn.setTags(tl, t, data, reloadList);
+			});
+			return true;
+		}
+	})
+};
+var doSetDue = function(){
+	if(selectionModel.getCount()<=0)
+		return;
+	var t = conn.getTaskFromList(selectionModel.getSelected().get('id')) || {};
+	showDialog({
+		field:{
+			xtype: 'textfield',
+			fieldLabel: 'Enter due date',
+			value: t.due_text
+		},
+		handler: function(data){
+			conn.createTimeline(function(tl){
+				conn.setDueDate(tl, t, data, reloadList);
+			});
+			return true;
+		}
+	})
+};
+
+var doSetRepeat = function(){
+	if(selectionModel.getCount()<=0)
+		return;
+	var t = conn.getTaskFromList(selectionModel.getSelected().get('id')) || {};
+	showDialog({
+		field:{
+			xtype: 'textfield',
+			fieldLabel: 'Enter recurrence',
+			value: ''
+		},
+		handler: function(data){
+			conn.createTimeline(function(tl){
+				conn.setRecurrence(tl, t, data, reloadList);
+			});
+			return true;
+		}
+	})
+};
+
+var doSetEstimate = function(){
+	if(selectionModel.getCount()<=0)
+		return;
+	var t = conn.getTaskFromList(selectionModel.getSelected().get('id')) || {};
+	showDialog({
+		field:{
+			xtype: 'textfield',
+			fieldLabel: 'Enter time estimated',
+			value: t.estimate
+		},
+		handler: function(data){
+			conn.createTimeline(function(tl){
+				conn.setEstimate(tl, t, data, reloadList);
+			});
+			return true;
+		}
+	})
+};
+
+var doSetTopPriority = function(){
+	if(selectionModel.getCount()<=0)
+		return;
+	var t = conn.getTaskFromList(selectionModel.getSelected().get('id')) || {};
+	conn.createTimeline(function(tl){
+		conn.setPriority(tl, t, 1, reloadList);
+	});
+};
+
+var doSetMiddlePriority = function(){
+	if(selectionModel.getCount()<=0)
+		return;
+	var t = conn.getTaskFromList(selectionModel.getSelected().get('id')) || {};
+	conn.createTimeline(function(tl){
+		conn.setPriority(tl, t, 2, reloadList);
+	});
+};
+
+var doSetLowPriority = function(){
+	if(selectionModel.getCount()<=0)
+		return;
+	var t = conn.getTaskFromList(selectionModel.getSelected().get('id')) || {};
+	conn.createTimeline(function(tl){
+		conn.setPriority(tl, t, 3, reloadList);
+	});
+};
+
+var doSetNoPriority = function(){
+	if(selectionModel.getCount()<=0)
+		return;
+	var t = conn.getTaskFromList(selectionModel.getSelected().get('id')) || {};
+	conn.createTimeline(function(tl){
+		conn.setPriority(tl, t, 4, reloadList);
+	});
+};
+
+var doPostpone = function(){
+	if(selectionModel.getCount()<=0)
+		return;
+	var t = conn.getTaskFromList(selectionModel.getSelected().get('id')) || {};
+	conn.createTimeline(function(tl){
+		conn.postpone(tl, t, reloadList);
+	});
+};
+
+var doDeleteTask = function(){
+	if(selectionModel.getCount()<=0)
+		return;
+	var t = conn.getTaskFromList(selectionModel.getSelected().get('id')) || {};
+	conn.createTimeline(function(tl){
+		conn.deleteTask(tl, t, reloadList);
+	});
+};
+var doCompleteTask = function(){
+	if(selectionModel.getCount()>0){
+		var id = selectionModel.getSelected().get('id');
+		completeTask(id);
+	}
+};
+
 Ext.onReady(function(){
 	Ext.QuickTips.init();
 	var mainWin = new Ext.air.NativeWindow({
@@ -349,6 +582,13 @@ Ext.onReady(function(){
 		enableKeyEvents: true
 	});
 	addField.on('keydown', function(item, event){
+		if(event.getKey()==27){//ESCAPE
+			if(item.getValue())
+				item.setValue('');
+			else{
+				grid.focus(false, 10);
+			}
+		}
 		if(event.getKey()==Ext.EventObject.ENTER && item.getValue()){
 			var data = parseQuickAdd(item.getValue());
 			if(data.text){
@@ -375,23 +615,7 @@ Ext.onReady(function(){
 	var completeBtn = new Ext.Button({
 		tooltip: 'Complete',
 		iconCls: 'icn-complete',
-		handler: function(){
-			if(selectionModel.getCount()>0){
-				var id = selectionModel.getSelected().get('id');
-				completeTask(id);
-				for (var i = 0; i < conn.list.length; i++) {
-					var task = conn.list[i];
-					if(task.id==id){
-//						air.trace('Completing task', task.name);
-						conn.createTimeline(function(tl){
-							conn.complete(tl, task, function(){
-								gridStore.remove(selectionModel.getSelected());
-							});
-						});
-					}
-				};
-			}
-		},
+		handler: doCompleteTask,
 		enabled: false
 	});
 	var editBtn = new Ext.Button({
@@ -399,20 +623,75 @@ Ext.onReady(function(){
 		iconCls: 'icn-edit',
 		menu: [
 			{
-				text: 'Name'
+				text: 'Name',
+				handler: doSetName
 			},{
-				text: 'List'
+				text: 'List',
+				handler: doSetList
 			},{
-				text: 'Location'
+				text: 'Location',
+				handler: doSetLocation
 			},{
-				text: 'Tags'
+				text: 'Tags',
+				handler: doSetTags
 			},{
-				text: 'Due date'
+				text: 'Due date',
+				handler: doSetDue
 			},{
-				text: 'Estimate'
+				text: 'Recurrence',
+				handler: doSetRepeat
+			},{
+				text: 'Estimate',
+				handler: doSetEstimate
+			},{
+				text: 'Priority',
+				menu: [
+					{
+						text: 'Top',
+						handler: doSetTopPriority
+					},{
+						text: 'Middle',
+						handler: doSetMiddlePriority
+					},{
+						text: 'Low',
+						handler: doSetLowPriority
+					},'-',{
+						text: 'None',
+						handler: doSetNoPriority
+					}
+				]
+			},'-', {
+				text: 'Postpone',
+				handler: doPostpone
+			},{
+				text: 'Delete',
+				handler: doDeleteTask
 			}
 		]
 	});
+
+	listButton = new Ext.Button({
+		text: 'List',
+		menu: []
+	});
+	currentList = settings.get('showList') || 0;
+	conn.listsUpdated = function(lists){
+		listButton.menu.removeAll();
+		for(var i=0; i<lists.length; i++){
+			var mi = listButton.menu.addMenuItem({
+				text: lists[i].name,
+				checked: lists[i].id==currentList,
+				group: 'lists',
+				handler: function(item){
+					currentList = item.listID;
+					reloadList();
+//					air.trace('show id', item.listID);
+				}
+			});
+			mi.listID = lists[i].id;
+		}
+	};
+
 	toolbar = new Ext.Toolbar({
 		region: 'north',
 		items: [
@@ -422,7 +701,13 @@ Ext.onReady(function(){
 				handler: function(){
 					reloadList();
 				}
-			}, completeBtn, editBtn, '->',{
+			}, completeBtn, editBtn, {
+				text: 'Undo',
+				tooltip: 'Undo last operation',
+				handler: function(){
+					conn.rollback(reloadList);
+				}
+			}, listButton, '->', {
 				tooltip: 'Settings',
 				iconCls: 'icn-settings',
 				handler: function(){
@@ -436,6 +721,16 @@ Ext.onReady(function(){
 					searchPanel.toggleCollapse(false);
 					viewport.syncSize();
 					viewport.doLayout();
+					if(searchPanel.collapsed){
+						if(searchString){
+							searchString = null;
+							reloadList();
+						}
+					}else{
+						searchString = settings.get('lastQuery');
+						searchField.setValue(searchString);
+						searchField.focus(true, 10);
+					}
 				}
 			}
 		]
@@ -451,10 +746,44 @@ Ext.onReady(function(){
 		enableKeyEvents: true
 	});
 
+	searchField.on('keydown', function(item, event){
+		if(event.getKey()==27){//ESCAPE
+			item.setValue('');
+		}
+		if(event.getKey()==Ext.EventObject.ENTER && item.getValue()){
+			searchString = item.getValue();
+			settings.set('lastQuery', searchString);
+			reloadList();
+		}
+	});
 	saveSearch = new Ext.Button({
 		text: 'Save',
 		region: 'east',
 		anchor: 'right',
+		handler: function(){
+			if(!searchString)
+				return;
+			showDialog({
+				field:{
+					xtype: 'textfield',
+					fieldLabel: 'Enter new smart list name',
+					value: ''
+				},
+				handler: function(data){
+					if(data && data!=''){
+						conn.createTimeline(function(tl){
+							conn.addSmartList(tl, data, searchString, function(){
+								conn.getLists();
+							});
+						});
+						return true;
+					}else{
+						showError('Invalid list name');
+						return false;
+					}
+				}
+			});
+		},
 		autoHeight: true
 	});
 
@@ -494,7 +823,7 @@ Ext.onReady(function(){
 		idIndex: 0 // id for each record will be the first element
 	});
 
-	var selectionModel = new Ext.grid.RowSelectionModel({singleSelect:true});
+	selectionModel = new Ext.grid.RowSelectionModel({singleSelect:true});
 	selectionModel.on('selectionchange', function(){
 //		air.trace('Selected rows: ',selectionModel.getCount());
 //		completeBtn.setDisabled(selectionModel.getCount()==0);
@@ -509,6 +838,58 @@ Ext.onReady(function(){
 		store: gridStore,
 //		tbar: searchToolbar,
 		region: 'center',
+		keys: [
+			{
+				key: 't',
+				fn: function(){
+					addField.focus(true, 10);
+				}
+			},{
+				key: 'c',
+				fn: doCompleteTask
+			},{
+				key: 'p',
+				fn: doPostpone
+			},{
+				key: 'd',
+				fn: doSetDue
+			},{
+				key: 'f',
+				fn: doSetRepeat
+			},{
+				key: 'g',
+				fn: doSetEstimate
+			},{
+				key: 's',
+				fn: doSetTags
+			},{
+				key: 'l',
+				fn: doSetLocation
+			},{
+				key: 'r',
+				fn: doSetName
+			},{
+				key: 'z',
+				fn: function(){
+					conn.rollback(reloadList);
+				}
+			},{
+				key: '1',
+				fn: doSetTopPriority
+			},{
+				key: '2',
+				fn: doSetMiddlePriority
+			},{
+				key: '3',
+				fn: doSetLowPriority
+			},{
+				key: '4',
+				fn: doSetNoPriority
+			},{
+				key: Ext.EventObject.DELETE,
+				fn: doDeleteTask
+			}
+		],
 		columns: [
 			{id: 'title', header: 'Task', tpl: gridTpl, xtype: 'templatecolumn', dataIndex: 'id'}
 		],
@@ -544,18 +925,47 @@ Ext.onReady(function(){
 	});
 	mainWin.moveTo(settings.get('mainLeft') || defaultState.mainLeft, settings.get('mainTop') || defaultState.mainTop);
 	mainWin.show();
+	checkWindowVisible(mainWin);
 	mainWin.instance.activate();
 	timer.init();
+
+	air.NativeApplication.nativeApplication.addEventListener(air.InvokeEvent.INVOKE, function(event){
+		var getParam = function(param){
+			for(var i = 0; i<event.arguments.length; i++){
+				if(event.arguments[i]==param && i<event.arguments.length-1)
+					return event.arguments[i+1];
+			}
+			return null;
+		}
+		var hasParam = function(param){
+			for(var i = 0; i<event.arguments.length; i++){
+				if(event.arguments[i]==param)
+					return true;
+			}
+			return false;
+		}
+		if(hasParam('--new-task')){
+//			mainWin.instance.orderToFront();
+			air.NativeApplication.nativeApplication.activate(mainWin.instance);
+			mainWin.instance.activate();
+			var text = getParam('--new-task');
+			if(text){
+				addField.setValue(text);
+			}
+			addField.focus(false, 10);
+		}
+	});
 	air.NativeApplication.nativeApplication.addEventListener(air.Event.USER_IDLE, timer.userIdle);
 	air.NativeApplication.nativeApplication.addEventListener(air.Event.USER_PRESENT, timer.userActive);
 	Ext.TaskMgr.start({
 		run: timer.oneSecond,
 		interval: 1000
 	});
-	Ext.TaskMgr.start({
+	updateTask = {
 		run: reloadByTimer,
-		interval: 5*60*1000
-	});
+		interval: (settings.get('updateMinutes') || 15)*60*1000
+	};
+	Ext.TaskMgr.start(updateTask);
 	viewport = new Ext.Viewport({
 		layout: 'fit',
 		items:{
@@ -573,12 +983,21 @@ Ext.onReady(function(){
 	}
 
 	conn.end = function(code, message){
-		if(message)
+		if(message){
 			air.trace('We got an error!', code, message);
-		//else
+			statusbar.setStatus({
+				text: message,
+				iconCls: 'icn-error',
+				clear: {
+					wait: 5000,
+					anim: false
+				}
+			});
+		}else{
 			statusbar.clearStatus({
 				useDefaults: true
 			});
+		}
 		toolbar.setDisabled(false);
 		grid.setDisabled(false);
 		topPanel.setDisabled(false);
@@ -591,7 +1010,7 @@ Ext.onReady(function(){
 		conn.getLocations();
 	}, function(code, message){
 		showSettingsWin();
-		air.trace('Check failed, '+code+':'+message);
+//		air.trace('Check failed, '+code+':'+message);
 	});
 });
 
@@ -625,6 +1044,7 @@ timer.startTask = function(taskID, force){
 };
 
 timer.getTask = function(taskID){
+	var row = findInGrid(taskID);
 	return timer.runningTasks[taskID] || {
 		seconds: sql.getSeconds(taskID),
 		background: row? sql.isBackground(row.get('series_id')): false,

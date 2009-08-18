@@ -113,7 +113,7 @@
 .icn-complete{background: url(../res/icn/complete.png) 0 0 no-repeat !important;}
 .icn-due{background: url(../res/icn/due.png) 0 0 no-repeat !important;}
 .icn-edit{background: url(../res/icn/edit.png) 0 0 no-repeat !important;}
-.icn-error{background: url(../res/icn/error.png) 0 0 no-repeat !important;}
+.icn-error{background: url(../res/icn/error.png) 0 0 no-repeat !important; padding-left: 20px !important;}
 .icn-list{background: url(../res/icn/list.png) 0 0 no-repeat !important;}
 .icn-location{background: url(../res/icn/location.png) 0 0 no-repeat !important;}
 .icn-pause{background: url(../res/icn/pause.png) 0 0 no-repeat !important;}
