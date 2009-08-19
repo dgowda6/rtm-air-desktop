@@ -23,6 +23,7 @@ var restPeriod = null;
 var inactivityDelay = null;
 var openPaused = null;
 var updateMinutes = null;
+var expandNotes = null;
 
 Ext.onReady(function(){
 
@@ -260,6 +261,10 @@ Ext.onReady(function(){
 		boxLabel: 'Open task in floating win paused',
 		checked: opener.settings.get('openPaused') || false
 	});
+	expandNotes = new Ext.form.Checkbox({
+		boxLabel: 'Auto expand notes in floating win',
+		checked: opener.settings.get('expandNotes') || false
+	});
 //	air.trace('trackWorkTime: '+trackWorkTime.getValue());
 	if(!opener.settings.get('trackWorkTime')){
 		trackWorkTimeChanged(false);
@@ -274,7 +279,7 @@ Ext.onReady(function(){
 		items:[
 			userButton, updateMinutes, showListCombo, listsCombo, locationsCombo, showReminder, reminderMinutes,
 			storeAsEstimate, storeAsNote,
-			trackWorkTime, workTimePeriod, restPeriod, inactivityDelay, openPaused
+			trackWorkTime, workTimePeriod, restPeriod, inactivityDelay, openPaused, expandNotes
 		],
 		buttons:[
 			{
@@ -299,6 +304,7 @@ Ext.onReady(function(){
 					opener.settings.set('restPeriod', restPeriod.getValue());
 					opener.settings.set('inactivityDelay', inactivityDelay.getValue());
 					opener.settings.set('openPaused', openPaused.getValue());
+					opener.settings.set('expandNotes', expandNotes.getValue());
 
 					window.nativeWindow.close();
 					opener.updateTask.interval = (updateMinutes.getValue() || 15)*60*1000;

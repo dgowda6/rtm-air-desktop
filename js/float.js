@@ -9,6 +9,8 @@ var titleDiv = null;
 var timerDiv = null;
 var tagsDiv = null;
 var dueDiv = null;
+var repeatDiv = null;
+var notesDiv = null;
 var locationDiv = null;
 var locationLink = null;
 var locationURL = null;
@@ -36,11 +38,12 @@ var addEditNote = function(panel, opener){
 	}
 	opener.showDialog({
 		id: 'noteEdit',
-		title: newNote? 'New note': 'Edit note',
+		title: newNote? 'New note:': 'Edit note:',
 		height: 300,
+		labelWidth: 70,
 		field:{
 			xtype: 'textarea',
-			fieldLabel: 'Enter note text here',
+			fieldLabel: 'Note text',
 			value: text,
 			height: 200
 		},
@@ -201,7 +204,7 @@ Ext.onReady(function(){
 		title: 'Current task',
 		region: 'center',
 		bbar: bottomBar,
-		html: '<div id="float-top"><div id="float-title"></div><div id="float-bottom"><div id="float-row"><div id="float-timer"></div><div id="float-right"><div id="float-tags"></div><div id="float-due"></div><div id="float-location"><a href="#"  id="float-location-link"></a></div></div></div></div></div>',
+		html: '<div id="float-top"><div id="float-title"></div><div id="float-bottom"><div id="float-row"><div id="float-timer"></div><div id="float-right"><div id="float-tags"></div><div id="float-due"></div><div id="float-notes" ext:qtip="Task has notes">&nbsp;</div><div id="float-repeat" ext:qtip="Task is recurrent">&nbsp;</div><div id="float-location"><a href="#" id="float-location-link"></a></div></div></div></div></div>',
 		bodyCssClass: 'resizer-bg',
 		listeners: {
 			render: function(p) {
@@ -222,6 +225,7 @@ Ext.onReady(function(){
 		autoScroll: true,
 		width: opener.settings.get('notesPanelWidth') || 180,
 		collapsible: true,
+		collapsed: true,
 		tools: [
 			{
 				id:'plus',
@@ -263,6 +267,10 @@ Ext.onReady(function(){
 	dueDiv = Ext.get('float-due');
 	locationDiv = Ext.get('float-location');
 	locationLink = Ext.get('float-location-link');
+	repeatDiv = Ext.get('float-repeat');
+	repeatDiv.setVisibilityMode(Ext.Element.DISPLAY);
+	notesDiv = Ext.get('float-notes');
+	notesDiv.setVisibilityMode(Ext.Element.DISPLAY);
 	locationLink.on('click', function(){
 		air.navigateToURL(new air.URLRequest(locationURL));
 		return false;

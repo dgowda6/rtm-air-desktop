@@ -10,7 +10,7 @@ var init = function(config){
 	config.field.enableKeyEvents = true;
 	var form = new Ext.form.FormPanel({
 		frame: 'true',
-		labelWidth: 200,
+		labelWidth: config.labelWidth || 200,
 		defaults:{
 		anchor: '100%'
 		},

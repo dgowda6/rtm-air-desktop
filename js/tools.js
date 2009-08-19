@@ -28,11 +28,11 @@ var escapeHTML = function(s){
 };
 
 var checkWindowVisible = function(win){
-	air.trace('checkWindowVisible', win.instance.x, win.instance.y, win.instance.width, win.instance.height);
+//	air.trace('checkWindowVisible', win.instance.x, win.instance.y, win.instance.width, win.instance.height);
 	var ok = false;
 	for(var i = 0; i<air.Screen.screens.length; i++){
 		var sc = air.Screen.screens[i];
-		air.trace('Screen', i, sc.visibleBounds.x, sc.visibleBounds.y, sc.visibleBounds.width, sc.visibleBounds.height);
+//		air.trace('Screen', i, sc.visibleBounds.x, sc.visibleBounds.y, sc.visibleBounds.width, sc.visibleBounds.height);
 		if(win.instance.x>=sc.visibleBounds.x && win.instance.y>=sc.visibleBounds.y &&
 		   win.instance.x+win.instance.width<=sc.visibleBounds.x+sc.visibleBounds.width &&
 		   win.instance.y+win.instance.height<=sc.visibleBounds.y+sc.visibleBounds.height){

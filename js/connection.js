@@ -243,7 +243,8 @@ conn.getList = function(listid, searchString, ok, error){
 							series_id: s.getAttribute('id'),
 							name: s.getAttribute('name'),
 							location_id: s.getAttribute('location_id'),
-							source: s.getAttribute('source')
+							source: s.getAttribute('source'),
+							repeat: s.getElementsByTagName('rrule').length>0
 						};
 						var t = s.getElementsByTagName('task').item(0);
 						if(!t)
