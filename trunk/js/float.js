@@ -15,6 +15,65 @@ var locationURL = null;
 var pauseBtn = null;
 var noPauseBtn = null;
 var paused = false;
+var notesPanel = null;
+
+var addEditNote = function(panel, opener){
+	var text = '';
+	var newNote = true;
+	var task = opener.conn.getTaskFromList(opener.timer.displayTask);
+	var note = null;
+	if(panel.noteID){
+		air.trace('we have noteID', panel.noteID);
+		if(task){
+			for(var i = 0; i<task.notes.length; i++){
+				if(task.notes[i].id==panel.noteID){
+					newNote = false;
+					note = task.notes[i];
+					text = (task.notes[i].title?(task.notes[i].title+'\n\n'): '')+task.notes[i].body;
+				}
+			}
+		}
+	}
+	opener.showDialog({
+		id: 'noteEdit',
+		title: newNote? 'New note': 'Edit note',
+		height: 300,
+		field:{
+			xtype: 'textarea',
+			fieldLabel: 'Enter note text here',
+			value: text,
+			height: 200
+		},
+		handler: function(data){
+			var firstEnter = data.indexOf('\n');
+			var title = firstEnter!=-1? data.substr(0, firstEnter).trim(): '';
+			var body = firstEnter!=-1? data.substr(firstEnter).trim(): data.trim();
+			if(!body){
+				opener.showError('Note is empty');
+				return false;
+			}
+			air.trace('Ready to save task title', title, 'body', body);
+			opener.conn.createTimeline(function(tl){
+				if(newNote){
+					opener.conn.addNote(tl, task, title, body, function(n){
+						air.trace('after add title', n.title, 'body', n.body);
+						opener.addNote(n, window);
+					});
+				}else{
+					note.title = title;
+					note.body = body;
+					opener.conn.editNote(tl, task, note, function(n){
+						air.trace('after edit title', n.title, 'body', n.body);
+						panel.setTitle(opener.escapeHTML(n.title) || 'Untitled');
+						panel.body.dom.innerHTML = opener.escapeHTML(n.body);
+						notesPanel.doLayout();
+					});
+				}
+			});
+			return true;
+		}
+	})
+}
 
 Ext.onReady(function(){
 	Ext.QuickTips.init();
@@ -92,7 +151,7 @@ Ext.onReady(function(){
 							value: timerDiv.dom.innerHTML
 						},
 						handler: function(data){
-							air.trace('Validate '+data);
+//							air.trace('Validate '+data);
 							var arr = data.split(':');
 							var secs = 0;
 
@@ -144,7 +203,6 @@ Ext.onReady(function(){
 		bbar: bottomBar,
 		html: '<div id="float-top"><div id="float-title"></div><div id="float-bottom"><div id="float-row"><div id="float-timer"></div><div id="float-right"><div id="float-tags"></div><div id="float-due"></div><div id="float-location"><a href="#"  id="float-location-link"></a></div></div></div></div></div>',
 		bodyCssClass: 'resizer-bg',
-		border: false,
 		listeners: {
 			render: function(p) {
 				p.getEl().on('mousedown', function(){
@@ -156,10 +214,31 @@ Ext.onReady(function(){
 		}
 	});
 	window.nativeWindow.alwaysInFront = opener.settings.get('floatOnTop');
+	notesPanel = new Ext.Panel({
+		region: 'east',
+		split: true,
+		title: 'Notes',
+		layout: 'anchor',
+		autoScroll: true,
+		width: opener.settings.get('notesPanelWidth') || 180,
+		collapsible: true,
+		tools: [
+			{
+				id:'plus',
+				handler: function(){
+					addEditNote(notesPanel, opener);
+				}
+			}
+		]
+	});
+	notesPanel.on('resize', function(){
+		air.trace('resize', notesPanel.getWidth());
+		opener.settings.set('notesPanelWidth', notesPanel.getWidth());
+	});
 	mainPanel = new Ext.Panel({
 		layout: 'border',
 		border: true,
-		items: [htmlPanel, bottomPanel]
+		items: [htmlPanel, bottomPanel, notesPanel]
 	});
 	new Ext.Viewport({
 		layout: 'fit',
@@ -167,7 +246,7 @@ Ext.onReady(function(){
 	});
 	opacity = opener.settings.get('floatOpacity') || 1;
 	Ext.get(document.body).setOpacity(opacity);
-	Ext.get(document.body).on('mousewheel', function(event){
+	Ext.get(htmlPanel.el).on('mousewheel', function(event){
 		if(event.getWheelDelta()>0){
 			if(opacity<1)
 				opacity += 0.05;
