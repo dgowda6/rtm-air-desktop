@@ -112,7 +112,7 @@ Ext.menu.Item.prototype.itemTpl=new Ext.XTemplate(
             ' target="{hrefTarget}"',
         '</tpl>',
      '>',
-         '<img src="{icon}" class="x-menu-item-icon {iconCls}">',
+         '<div class="x-menu-item-icon {iconCls}">&nbsp;</div>',
          '<span class="x-menu-item-text">{text}</span>',
      '</a>'
  );

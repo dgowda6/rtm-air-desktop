@@ -26,7 +26,7 @@ var init = function(config){
 					else{
 						form.setDisabled(false);
 						window.nativeWindow.activate();
-						form.items.itemAt(0).focus(true, 10);
+						form.items.itemAt(0).focus(config.field.xtype=='textfield', 10);
 					}
 				}
 			},{
@@ -45,7 +45,7 @@ var init = function(config){
 		if(event.getKey()==27){
 			window.nativeWindow.close();
 		}
-		if(event.getKey()==Ext.EventObject.ENTER){
+		if(event.getKey()==Ext.EventObject.ENTER && config.field.xtype=='textfield'){
 			var data = form.getForm().getValues().field;
 			form.setDisabled(true);
 			if(config.handler(data))
@@ -57,5 +57,5 @@ var init = function(config){
 			}
 		}
 	});
-	form.items.itemAt(0).focus(true, 10);
+	form.items.itemAt(0).focus(config.field.xtype=='textfield', 10);
 }

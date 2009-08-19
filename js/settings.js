@@ -197,7 +197,8 @@ Ext.onReady(function(){
 		value: opener.settings.get('reminderMinutes') || 5
 	});
 	showReminder = new Ext.form.Checkbox({
-		boxLabel: 'Show reminder'
+		boxLabel: 'Show reminder',
+		disabled: true
 	});
 	showReminder.on('check', function(ch, state){
 		reminderMinutes.setDisabled(!state);

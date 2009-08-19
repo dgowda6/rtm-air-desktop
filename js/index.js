@@ -229,6 +229,41 @@ var reloadList = function(){
 	});
 }
 
+var addNote = function(note, win){
+	var panel = new win.window.Ext.Panel({
+		title: escapeHTML(note.title) || 'Untitled',
+		html: escapeHTML(note.body),
+		tools: [
+			{
+				id: 'minus',
+				handler: function(e, tool, panel){
+//					air.trace('Removing note', panel.noteID);
+					conn.createTimeline(function(tl){
+						conn.deleteNote(tl, conn.getTaskFromList(timer.displayTask), panel.note, function(){
+							win.window.notesPanel.remove(panel);
+							win.window.notesPanel.doLayout();
+						})
+					})
+				}
+			}
+		],
+		autoHeight: true,
+		width: '100%',
+		cls: 'x-task-note'
+	});
+	panel.note = note;
+	panel.noteID = note.id;
+	win.window.notesPanel.add(panel);
+	win.window.notesPanel.doLayout();
+	if(panel.body)
+		panel.body.on('dblclick', function(){
+			win.window.addEditNote(this, window);
+		}, panel);
+	else{
+		air.trace('body isn\'t ready');
+	}
+}
+
 var showFloatWin = function(task){
 	var win = openNewWindow({
 		id: 'float',
@@ -238,7 +273,7 @@ var showFloatWin = function(task){
 		transparent: true,
 		type: 'lightweight',
 		onTop: true,
-		width: 300,
+		width: 430,
 		height: 160,
 		afterOpen: function(win){
 //			air.trace('Window reactivated', task.name, task.id, win.window.titleDiv.dom.innerHTML);
@@ -264,6 +299,16 @@ var showFloatWin = function(task){
 						win.window.locationURL = 'http://maps.google.com/?ll='+conn.locations[i].latitude+','+conn.locations[i].longitude+'&z='+conn.locations[i].zoom;
 						loc = conn.locations[i].name;
 					}
+				}
+				win.window.notesPanel.removeAll();
+				if(t.notes.length>0){
+					win.window.notesPanel.expand(false);
+				}else{
+					win.window.notesPanel.collapse(true);
+				}
+				for(var i = 0; i<t.notes.length; i++){
+					var note = t.notes[i];
+					addNote(note, win);
 				}
 			}
 			win.window.locationLink.dom.innerHTML = loc;
@@ -330,9 +375,9 @@ var completeTask = function(taskID){
 
 var showDialog = function(config){
 	openNewWindow({
-		id: 'dialog',
+		id: config.id? config.id: 'dialog',
 		width: 500,
-		height: 115,
+		height: config.height? config.height: 115,
 		stateful: true,
 		src: 'dialog.html',
 		afterOpen: function(win, created){
@@ -568,6 +613,7 @@ Ext.onReady(function(){
 		id: 'mainWindow',
 		instance: window.nativeWindow,
 		minimizeToTray: true,
+		trayIcon: '../res/app/tl16.png',
 		trayTip: 'RTM Desktop',
 		width: settings.get('mainWidth') || defaultState.mainWidth,
 		height: settings.get('mainHeight') || defaultState.mainHeight
@@ -620,40 +666,51 @@ Ext.onReady(function(){
 	});
 	var editBtn = new Ext.Button({
 		tooltip: 'Edit',
-		iconCls: 'icn-edit',
+		iconCls: 'icn-edit2',
 		menu: [
 			{
 				text: 'Name',
+				iconCls: 'icn-edit',
 				handler: doSetName
 			},{
 				text: 'List',
+				iconCls: 'icn-lists',
 				handler: doSetList
 			},{
 				text: 'Location',
+				iconCls: 'icn-location',
 				handler: doSetLocation
 			},{
 				text: 'Tags',
+				iconCls: 'icn-tags',
 				handler: doSetTags
 			},{
 				text: 'Due date',
+				iconCls: 'icn-due',
 				handler: doSetDue
 			},{
 				text: 'Recurrence',
+				iconCls: 'icn-repeat',
 				handler: doSetRepeat
 			},{
 				text: 'Estimate',
+				iconCls: 'icn-clock',
 				handler: doSetEstimate
 			},{
 				text: 'Priority',
+				iconCls: 'icn-priority',
 				menu: [
 					{
 						text: 'Top',
+						iconCls: 'icn-priority-top',
 						handler: doSetTopPriority
 					},{
 						text: 'Middle',
+						iconCls: 'icn-priority-middle',
 						handler: doSetMiddlePriority
 					},{
 						text: 'Low',
+						iconCls: 'icn-priority-low',
 						handler: doSetLowPriority
 					},'-',{
 						text: 'None',
@@ -662,16 +719,19 @@ Ext.onReady(function(){
 				]
 			},'-', {
 				text: 'Postpone',
+				iconCls: 'icn-postpone',
 				handler: doPostpone
 			},{
 				text: 'Delete',
+				iconCls: 'icn-delete',
 				handler: doDeleteTask
 			}
 		]
 	});
 
 	listButton = new Ext.Button({
-		text: 'List',
+		tooltip: 'Select list to display',
+		iconCls: 'icn-list',
 		menu: []
 	});
 	currentList = settings.get('showList') || 0;
@@ -702,7 +762,7 @@ Ext.onReady(function(){
 					reloadList();
 				}
 			}, completeBtn, editBtn, {
-				text: 'Undo',
+				iconCls: 'icn-undo',
 				tooltip: 'Undo last operation',
 				handler: function(){
 					conn.rollback(reloadList);
@@ -946,6 +1006,8 @@ Ext.onReady(function(){
 		}
 		if(hasParam('--new-task')){
 //			mainWin.instance.orderToFront();
+			if(mainWin.instance.displayState==air.NativeWindowDisplayState.MINIMIZED)
+				mainWin.instance.restore();
 			air.NativeApplication.nativeApplication.activate(mainWin.instance);
 			mainWin.instance.activate();
 			var text = getParam('--new-task');

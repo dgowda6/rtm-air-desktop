@@ -227,7 +227,7 @@ conn.getList = function(listid, searchString, ok, error){
 	this.makeQuery({
 		url: this.buildURL({
 			list_id: listid,
-			filter: searchString
+			filter: searchString? searchString: 'status:incomplete'
 		}, 'rtm.tasks.getList'),
 		ok: function(xml){
 			var list = xml.getElementsByTagName('list');
@@ -431,8 +431,8 @@ conn.addNote = function(timeline, task, title, body, ok, error){
 			list_id: task.list_id,
 			taskseries_id: task.series_id,
 			task_id: task.id,
-			note_title: title,
-			note_text: body
+			note_title: title || '',
+			note_text: body || ''
 		}, 'rtm.tasks.notes.add'),
 		ok: function(xml){
 			var note = xml.getElementsByTagName('note').item(0);
@@ -445,7 +445,48 @@ conn.addNote = function(timeline, task, title, body, ok, error){
 			}
 			conn.addTransaction(xml);
 			if(ok)
-				ok();
+				ok(task.notes[task.notes.length-1]);
+		}, error: error});
+};
+
+conn.editNote = function(timeline, task, note, ok, error){
+	this.makeQuery({
+		sync: true,
+		url: this.buildURL({
+			timeline: timeline,
+			note_id: note.id,
+			note_title: note.title || '',
+			note_text: note.body || ''
+		}, 'rtm.tasks.notes.edit'),
+		ok: function(xml){
+			var n = xml.getElementsByTagName('note').item(0);
+			if(n){
+				note.title = n.getAttribute('title'),
+				note.body = n.firstChild.nodeValue
+			}
+			conn.addTransaction(xml);
+			if(ok)
+				ok(note);
+		}, error: error});
+};
+
+conn.deleteNote = function(timeline, task, note, ok, error){
+	this.makeQuery({
+		sync: true,
+		url: this.buildURL({
+			timeline: timeline,
+			note_id: note.id
+		}, 'rtm.tasks.notes.delete'),
+		ok: function(xml){
+			conn.addTransaction(xml);
+			for(var i = 0; i<task.notes.length; i++){
+				if(task.notes[i].id==note.id){
+					task.notes.splice(i, 1);
+					break;
+				}
+			}
+			if(ok)
+				ok(note);
 		}, error: error});
 };
 
