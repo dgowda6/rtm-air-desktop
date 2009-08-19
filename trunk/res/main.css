@@ -101,8 +101,25 @@
 }
 
 #float-location{
+	margin-left: 3px;
 	color: #000077;
 	font-size: 0.8em;
+	float: right;
+}
+
+#float-repeat{
+	margin-left: 3px;
+	float: right;
+	width: 16px;
+	height: 16px;
+	background: url(../res/icn/repeat.png) 0 0 no-repeat !important;
+}
+#float-notes{
+	margin-left: 3px;
+	float: right;
+	width: 16px;
+	height: 16px;
+	background: url(../res/icn/notes.png) 0 0 no-repeat !important;
 }
 #float-due{
 	color: #676767;

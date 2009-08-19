@@ -238,6 +238,8 @@ var addNote = function(note, win){
 				id: 'minus',
 				handler: function(e, tool, panel){
 //					air.trace('Removing note', panel.noteID);
+					if(!confirm('Delete note?'))
+						return;
 					conn.createTimeline(function(tl){
 						conn.deleteNote(tl, conn.getTaskFromList(timer.displayTask), panel.note, function(){
 							win.window.notesPanel.remove(panel);
@@ -273,7 +275,7 @@ var showFloatWin = function(task){
 		transparent: true,
 		type: 'lightweight',
 		onTop: true,
-		width: 430,
+		width: 300,
 		height: 160,
 		afterOpen: function(win){
 //			air.trace('Window reactivated', task.name, task.id, win.window.titleDiv.dom.innerHTML);
@@ -294,6 +296,8 @@ var showFloatWin = function(task){
 			var t = conn.getTaskFromList(task.get('id'));
 			var loc = '';
 			if(t){
+				win.window.notesDiv.setVisible(t.notes.length>0);
+				win.window.repeatDiv.setVisible(t.repeat);
 				for(var i = 0; i<conn.locations.length; i++){
 					if(conn.locations[i].id==t.location_id){
 						win.window.locationURL = 'http://maps.google.com/?ll='+conn.locations[i].latitude+','+conn.locations[i].longitude+'&z='+conn.locations[i].zoom;
@@ -301,10 +305,17 @@ var showFloatWin = function(task){
 					}
 				}
 				win.window.notesPanel.removeAll();
+				var panelWidth = settings.get('notesPanelWidth') || 180;
+				var collapsed = win.window.notesPanel.collapsed;
 				if(t.notes.length>0){
-					win.window.notesPanel.expand(false);
+//					if(collapsed && win.nativeWindow.width<2*panelWidth)
+//						win.nativeWindow.width+=panelWidth;
+					if(settings.get('expandNotes'))
+						win.window.notesPanel.expand(false);
 				}else{
-					win.window.notesPanel.collapse(true);
+					win.window.notesPanel.collapse(false);
+//					if(!collapsed)
+//						win.nativeWindow.width-=panelWidth;
 				}
 				for(var i = 0; i<t.notes.length; i++){
 					var note = t.notes[i];
@@ -333,7 +344,7 @@ var secondsToEstimate = function(seconds){
 	var hours = Math.floor(secs/3600);
 	secs -= hours*3600;
 	var mins = Math.round(secs/60);
-	air.trace('completeTask:', hours, mins, secs, seconds);
+//	air.trace('completeTask:', hours, mins, secs, seconds);
 	if(mins==0 && hours==0)
 		mins = 1;
 	if(mins>10 || hours>0){
@@ -347,7 +358,7 @@ var secondsToEstimate = function(seconds){
 		estString = hours+' hr ';
 	if(mins>0)
 		estString += mins+' min';
-	air.trace('completeTask:', hours, mins, estString);
+//	air.trace('completeTask:', hours, mins, estString);
 	return estString.trim();
 }
 
@@ -595,6 +606,8 @@ var doPostpone = function(){
 var doDeleteTask = function(){
 	if(selectionModel.getCount()<=0)
 		return;
+	if(!confirm('Delete task "'+selectionModel.getSelected().get('title')+'"?'))
+		return;
 	var t = conn.getTaskFromList(selectionModel.getSelected().get('id')) || {};
 	conn.createTimeline(function(tl){
 		conn.deleteTask(tl, t, reloadList);
@@ -609,11 +622,12 @@ var doCompleteTask = function(){
 
 Ext.onReady(function(){
 	Ext.QuickTips.init();
+	air.trace(air.NativeApplication.supportsSystemTrayIcon);
 	var mainWin = new Ext.air.NativeWindow({
 		id: 'mainWindow',
 		instance: window.nativeWindow,
-		minimizeToTray: true,
-		trayIcon: '../res/app/tl16.png',
+		minimizeToTray: air.NativeApplication.supportsSystemTrayIcon,
+		trayIcon: air.NativeApplication.supportsSystemTrayIcon? '../res/app/tl16.png': null,
 		trayTip: 'RTM Desktop',
 		width: settings.get('mainWidth') || defaultState.mainWidth,
 		height: settings.get('mainHeight') || defaultState.mainHeight
