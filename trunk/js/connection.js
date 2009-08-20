@@ -199,6 +199,22 @@ conn.getLists = function(ok, error){
 	});
 }
 
+conn.getSettings = function(ok, error){
+	this.makeQuery({
+		url: this.buildURL({}, 'rtm.settings.getList'),
+		sync: true,
+		ok: function(xml){
+			var df = xml.getElementsByTagName('dateformat');
+			var tf = xml.getElementsByTagName('timeformat');
+			if(ok)
+			ok({
+				dateformat: df.length>0? (df.item(0).firstChild.nodeValue=='0'? 'j/n': 'n/j'): 'n/j',
+				timeformat: tf.length>0? (tf.item(0).firstChild.nodeValue=='0'? 'g:i a': 'G:i'): 'g:i a'
+			});
+		}
+	});
+};
+
 conn.getLocations = function(ok, error){
 	this.makeQuery({
 		url: this.buildURL({}, 'rtm.locations.getList'),
@@ -620,8 +636,14 @@ conn.complete = function(timeline, task, ok, error){
 		}, 'rtm.tasks.complete'),
 		ok: function(xml){
 			conn.addTransaction(xml);
+			var g = xml.getElementsByTagName('generated');
+			if(g.length>0){
+				var t = g.item(0).getElementsByTagName('task');
+				if(t.length>0)
+					task.id = t.item(0).getAttribute('id');
+			}
 			if(ok)
-				ok();
+				ok(task);
 		}, error: error});
 };
 

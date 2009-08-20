@@ -223,6 +223,7 @@ Ext.onReady(function(){
 		title: 'Notes',
 		layout: 'anchor',
 		autoScroll: true,
+		forceLayout: true,
 		width: opener.settings.get('notesPanelWidth') || 180,
 		collapsible: true,
 		collapsed: true,

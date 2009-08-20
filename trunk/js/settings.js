@@ -115,6 +115,10 @@ Ext.onReady(function(){
 				}else{
 					mask.show();
 					opener.conn.getToken(function(user){
+						opener.conn.getSettings(function(s){
+							opener.dateFormat = s.dateformat;
+							opener.timeFormat = s.timeformat;
+						});
 						tokenOk(user);
 					}, function(code, msg){
 						mask.hide();

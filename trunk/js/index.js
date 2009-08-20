@@ -15,6 +15,8 @@ var searchString = null;
 var listButton = null;
 var currentList = null;
 var updateTask = null;
+var dateFormat = '';
+var timeFormat = '';
 
 var gridTpl = new Ext.XTemplate('<tpl for="."><div class="x-task-item x-task-priority{priority}"><div class="x-task-timer x-task-timer-odd-{timer_odd}">{timer}</div><div class="x-task-title x-task-title-{overdue}">{title}</div><div style="clear: both;"></div><div class="x-task-tags">{tags}</div><div class="x-task-due">{due_text}</div><div style="clear: both;"></div></div></tpl>');
 
@@ -177,9 +179,9 @@ var reloadList = function(){
 			var due = '&nbsp;';
 			var overdue = 0;
 			if(task.due){
-				due = task.due.format('n/j');
+				due = task.due.format(dateFormat);
+
 				var days = daysBetween(task.due, now);
-//				air.trace('days: ', task.due, now, days, task.name);
 				if(days>=0 && days<7){
 					if(days==0){
 						overdue = 1;
@@ -197,7 +199,7 @@ var reloadList = function(){
 				if(days<0)
 					overdue = 2;
 				if(task.hasTime)
-					due += ' '+task.due.format('g:i a');
+					due += ' '+task.due.format(timeFormat);
 				task.due_text = due;
 			}else{
 
@@ -231,6 +233,7 @@ var reloadList = function(){
 
 var addNote = function(note, win){
 	var panel = new win.window.Ext.Panel({
+		forceLayout: true,
 		title: escapeHTML(note.title) || 'Untitled',
 		html: escapeHTML(note.body),
 		tools: [
@@ -307,20 +310,21 @@ var showFloatWin = function(task){
 				win.window.notesPanel.removeAll();
 				var panelWidth = settings.get('notesPanelWidth') || 180;
 				var collapsed = win.window.notesPanel.collapsed;
+				var needCollapse = false;
 				if(t.notes.length>0){
-//					if(collapsed && win.nativeWindow.width<2*panelWidth)
-//						win.nativeWindow.width+=panelWidth;
-					if(settings.get('expandNotes'))
-						win.window.notesPanel.expand(false);
+					needCollapse = true;
+					if(settings.get('expandNotes') || !collapsed)
+						needCollapse = false;
+					win.window.notesPanel.expand(false);
 				}else{
 					win.window.notesPanel.collapse(false);
-//					if(!collapsed)
-//						win.nativeWindow.width-=panelWidth;
 				}
 				for(var i = 0; i<t.notes.length; i++){
 					var note = t.notes[i];
 					addNote(note, win);
 				}
+				if(needCollapse)
+					win.window.notesPanel.collapse(false);
 			}
 			win.window.locationLink.dom.innerHTML = loc;
 		}
@@ -370,15 +374,15 @@ var completeTask = function(taskID){
 	var timerTask = timer.getTask(taskID);
 	var estString = secondsToEstimate(timerTask.seconds);
 	conn.createTimeline(function(tl){
-		conn.complete(tl, t, function(){
+		conn.complete(tl, t, function(newTask){
 			if(settings.get('storeAsEstimate') && timerTask.seconds>0){
-				conn.setEstimate(tl, t, estString);
+				conn.setEstimate(tl, newTask, estString);
 			}
 			var d = new Date();
 			if(settings.get('storeAsNote') && timerTask.seconds>0){
-				conn.addNote(tl, t, d.format('n/j/y g:i a'), 'Task completed in '+estString);
+				conn.addNote(tl, newTask, d.format(dateFormat+'/y '+timeFormat), 'Task completed in '+estString);
 			}
-			gridStore.remove(task);
+			reloadList();
 			timer.completeTask(taskID);
 		});
 	});
@@ -1080,6 +1084,10 @@ Ext.onReady(function(){
 	}
 
 	conn.checkToken(function(xml){
+		conn.getSettings(function(s){
+			dateFormat = s.dateformat;
+			timeFormat = s.timeformat;
+		});
 		conn.getLists(function(){
 			reloadList();
 		});
@@ -1148,7 +1156,6 @@ timer.completeTask = function(taskID){
 		timer.pauseTask(taskID, true);
 		timer.runningTasks[taskID] = null;
 		sql.deleteSeconds(taskID);
-		//Save here work time
 	}
 }
 
