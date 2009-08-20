@@ -21,7 +21,8 @@ var getChildWindow = function(winID){
 var escapeHTML = function(s){
 	if(!s)
 		return '';
-	var res = s.replace(/</g, '&lt;');
+	var res = s.replace(/\&/g, '&amp;');
+	res = res.replace(/</g, '&lt;');
 	res = res.replace(/>/g, '&gt;');
 	res = res.replace(/\n/g, '<br/>');
 	return res;
@@ -104,7 +105,7 @@ Date.precompileFormats = function(s){
     }
 }
 
-Date.precompileFormats("Y-m-d\\TH:i:s\\Z|Z|n/j|g:i a|l|Y|Y-m-d|z|n/j/y g:i a");
+Date.precompileFormats("Y-m-d\\TH:i:s\\Z|Z|n/j|g:i a|l|Y|Y-m-d|z|n/j/y g:i a|j/n/y g:i a|n/j/y G:i|j/n/y G:i|j/n|G:i");
 
 Ext.menu.Item.prototype.itemTpl=new Ext.XTemplate(
     '<a id="{id}" class="{cls}" hidefocus="true" unselectable="on" href="{href}"',
