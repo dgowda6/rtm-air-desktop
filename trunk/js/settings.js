@@ -29,7 +29,7 @@ Ext.onReady(function(){
 
 	var tokenOk = function(user){
 		userButton.setText(user.username+': remove permission');
-//		air.trace('Saving token '+opener.conn.authToken);
+//		log('Saving token '+opener.conn.authToken);
 		opener.settings.set('authToken', opener.conn.authToken);
 		buttonStatus = 2;
 		opener.conn.getLists(function(lists){
@@ -269,7 +269,7 @@ Ext.onReady(function(){
 		boxLabel: 'Auto expand notes in floating win',
 		checked: opener.settings.get('expandNotes') || false
 	});
-//	air.trace('trackWorkTime: '+trackWorkTime.getValue());
+//	log('trackWorkTime: '+trackWorkTime.getValue());
 	if(!opener.settings.get('trackWorkTime')){
 		trackWorkTimeChanged(false);
 	}

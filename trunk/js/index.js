@@ -72,7 +72,7 @@ var parseQuickAdd = function(data){
 		priority: 4
 	};
 
-//	air.trace('|'+words.join('|')+'|');
+//	log('|'+words.join('|')+'|');
 	while(wordAt<words.length){
 		var word = words[wordAt];
 		if(specWord(word)){
@@ -149,7 +149,7 @@ var parseQuickAdd = function(data){
 		wordAt++;
 	}
 	result.text = result.text.trim();
-//	air.trace('Parse result:'+result.text, 'list:'+result.list, 'location:'+result.location, 'estimate:'+result.estimate, 'repeat:'+result.repeat, 'tags:'+result.tags.join(','), 'priority:'+result.priority);
+//	log('Parse result:'+result.text, 'list:'+result.list, 'location:'+result.location, 'estimate:'+result.estimate, 'repeat:'+result.repeat, 'tags:'+result.tags.join(','), 'priority:'+result.priority);
 	return result;
 }
 
@@ -166,7 +166,7 @@ var reloadList = function(){
 	conn.getList(searchString? null: currentList, searchString, function(list){
 		window.nativeWindow.title = titlePrefix;
 		for(var l in conn.lists){
-//			air.trace(conn.lists[l].name, conn.lists[l].id, settings.get('showList'));
+//			log(conn.lists[l].name, conn.lists[l].id, settings.get('showList'));
 			if(conn.lists[l].id==settings.get('showList'))
 				window.nativeWindow.title = titlePrefix+conn.lists[l].name;
 		}
@@ -218,7 +218,7 @@ var reloadList = function(){
 				tags: task.tags.join(', '),
 				overdue: overdue
 			}));
-//			air.trace('Adding', task.name, dueDate);
+//			log('Adding', task.name, dueDate);
 		}
 		gridStore.sort('due', 'ASC');
 		if(prevID){
@@ -240,7 +240,7 @@ var addNote = function(note, win){
 			{
 				id: 'minus',
 				handler: function(e, tool, panel){
-//					air.trace('Removing note', panel.noteID);
+//					log('Removing note', panel.noteID);
 					if(!confirm('Delete note?'))
 						return;
 					conn.createTimeline(function(tl){
@@ -265,7 +265,7 @@ var addNote = function(note, win){
 			win.window.addEditNote(this, window);
 		}, panel);
 	else{
-		air.trace('body isn\'t ready');
+		log('body isn\'t ready');
 	}
 }
 
@@ -280,9 +280,12 @@ var showFloatWin = function(task){
 		onTop: true,
 		width: 300,
 		height: 160,
-		afterOpen: function(win){
-//			air.trace('Window reactivated', task.name, task.id, win.window.titleDiv.dom.innerHTML);
-			timer.pauseTask(timer.displayTask);
+		afterOpen: function(win, newWin){
+//			log('Window reactivated', task.name, task.id, win.window.titleDiv.dom.innerHTML);
+			win.nativeWindow.alwaysInFront = settings.get('floatOnTop') || false;
+			if(newWin || timer.displayTask!=task.get('id')){
+				timer.pauseTask(timer.displayTask);
+			}
 			timer.displayTask = task.get('id');
 			var t = timer.startTask(task.get('id'));
 			if(!timer.trackWorkTime){
@@ -348,7 +351,7 @@ var secondsToEstimate = function(seconds){
 	var hours = Math.floor(secs/3600);
 	secs -= hours*3600;
 	var mins = Math.round(secs/60);
-//	air.trace('completeTask:', hours, mins, secs, seconds);
+//	log('completeTask:', hours, mins, secs, seconds);
 	if(mins==0 && hours==0)
 		mins = 1;
 	if(mins>10 || hours>0){
@@ -362,7 +365,7 @@ var secondsToEstimate = function(seconds){
 		estString = hours+' hr ';
 	if(mins>0)
 		estString += mins+' min';
-//	air.trace('completeTask:', hours, mins, estString);
+//	log('completeTask:', hours, mins, estString);
 	return estString.trim();
 }
 
@@ -626,7 +629,7 @@ var doCompleteTask = function(){
 
 Ext.onReady(function(){
 	Ext.QuickTips.init();
-	air.trace(air.NativeApplication.supportsSystemTrayIcon);
+//	log(air.NativeApplication.supportsSystemTrayIcon);
 	var mainWin = new Ext.air.NativeWindow({
 		id: 'mainWindow',
 		instance: window.nativeWindow,
@@ -638,7 +641,7 @@ Ext.onReady(function(){
 	});
 	sql.init();
 	conn.authToken = settings.get('authToken') || '';
-	air.trace('Token from settings: '+conn.authToken);
+	log('Token from settings: '+conn.authToken);
 
 	addField = new Ext.form.TextField({
 		width: '100%',
@@ -763,7 +766,7 @@ Ext.onReady(function(){
 				handler: function(item){
 					currentList = item.listID;
 					reloadList();
-//					air.trace('show id', item.listID);
+//					log('show id', item.listID);
 				}
 			});
 			mi.listID = lists[i].id;
@@ -884,11 +887,14 @@ Ext.onReady(function(){
 	});
 
 	trackProgress = new Ext.ProgressBar({
+		overCls: 'pointer',
+		tooltip: 'Double click to take a rest immediately'
 	});
 
 	trackPanel = new Ext.Panel({
 		region: 'south',
 		autoHeight: true,
+		border: false,
 		layout: 'fit',
 		items: [trackProgress]
 	});
@@ -903,7 +909,7 @@ Ext.onReady(function(){
 
 	selectionModel = new Ext.grid.RowSelectionModel({singleSelect:true});
 	selectionModel.on('selectionchange', function(){
-//		air.trace('Selected rows: ',selectionModel.getCount());
+//		log('Selected rows: ',selectionModel.getCount());
 //		completeBtn.setDisabled(selectionModel.getCount()==0);
 		if(selectionModel.getCount()>0){
 			//Row here
@@ -981,16 +987,16 @@ Ext.onReady(function(){
 		}
 	});
 	mainWin.on('move', function(event){
-//		air.trace('x: '+event.afterBounds.x+', '+event.afterBounds.y);
+//		log('x: '+event.afterBounds.x+', '+event.afterBounds.y);
 		settings.set('mainLeft', event.afterBounds.x);
 		settings.set('mainTop', event.afterBounds.y);
 	});
 	mainWin.on('resize', function(event){
-//		air.trace('width: '+event.afterBounds.width+', '+event.afterBounds.height);
+//		log('width: '+event.afterBounds.width+', '+event.afterBounds.height);
 		settings.set('mainWidth', event.afterBounds.width);
 		settings.set('mainHeight', event.afterBounds.height);
 		setTimeout(function(){
-//				air.trace('update layout');
+//				log('update layout');
 				viewport.syncSize();
 				viewport.doLayout();
 			}, 100);
@@ -1064,7 +1070,7 @@ Ext.onReady(function(){
 
 	conn.end = function(code, message){
 		if(message){
-			air.trace('We got an error!', code, message);
+			log('We got an error!', code, message);
 			statusbar.setStatus({
 				text: message,
 				iconCls: 'icn-error',
@@ -1094,7 +1100,11 @@ Ext.onReady(function(){
 		conn.getLocations();
 	}, function(code, message){
 		showSettingsWin();
-//		air.trace('Check failed, '+code+':'+message);
+//		log('Check failed, '+code+':'+message);
+	});
+	trackProgress.el.on('dblclick', function(){
+		timer.barDblClick();
+		return false;
 	});
 });
 
@@ -1176,12 +1186,27 @@ timer.secondsToString = function(seconds){
 	return (hours>0? hours+':': '')+(hours>0 && mins<10? '0': '')+mins+':'+(secs<10?'0':'')+secs;
 }
 
-timer.updateProgress = function(value, seconds, text){
-	trackProgress.updateProgress(value, text+timer.secondsToString(seconds));
+timer.updateProgress = function(value, seconds, text, green){
 	var floatWin = getChildWindow('float');
+	if(green){
+		trackProgress.el.child('.x-progress-bar').addClass('x-progress-bar-g');
+		trackProgress.el.child('.x-progress-text-back').addClass('x-progress-text-back-g');
+		if(floatWin){
+			floatWin.window.trackProgress.el.child('.x-progress-bar').addClass('x-progress-bar-g');
+			floatWin.window.trackProgress.el.child('.x-progress-text-back').addClass('x-progress-text-back-g');
+		}
+	}else{
+		trackProgress.el.child('.x-progress-bar').removeClass('x-progress-bar-g');
+		trackProgress.el.child('.x-progress-text-back').removeClass('x-progress-text-back-g');
+		if(floatWin){
+			floatWin.window.trackProgress.el.child('.x-progress-bar').removeClass('x-progress-bar-g');
+			floatWin.window.trackProgress.el.child('.x-progress-text-back').removeClass('x-progress-text-back-g');
+		}
+	}
+	trackProgress.updateProgress(value, text+timer.secondsToString(seconds));
 	if(floatWin)
 		floatWin.window.trackProgress.updateProgress(value, text+timer.secondsToString(seconds));
-//	air.trace('update', value, text+mins+':'+(secs<10?'0':'')+secs);
+//	log('update', value, text+mins+':'+(secs<10?'0':'')+secs);
 }
 
 timer.saveAllTimes = function(){
@@ -1190,6 +1215,26 @@ timer.saveAllTimes = function(){
 			continue;
 		var seconds = timer.runningTasks[taskID].seconds;
 		sql.saveSeconds(taskID, seconds);
+	}
+}
+
+timer.barDblClick = function(){
+	if(!timer.trackWorkTime)
+		return;
+	if(timer.action==timer.TYPE_USER_ACTIVE || timer.action==timer.TYPE_USER_OVERWORK){
+		//Take a rest immediately
+		timer.isUserActive = false;
+		timer.idleSeconds = 0;
+		timer.action = timer.TYPE_USER_BREAK_OVERWORK;
+		timer.showProgress();
+	}else{
+		if(timer.action == timer.TYPE_USER_BREAK_OVERWORK){
+			//Start work immediately
+			timer.isUserActive = true;
+			timer.action = timer.TYPE_USER_ACTIVE;
+			timer.workSeconds = 0;
+			timer.showProgress();
+		}
 	}
 }
 
@@ -1260,10 +1305,10 @@ timer.showProgress = function(){
 			break;
 		case timer.TYPE_USER_BREAK_OVERWORK:
 		case timer.TYPE_USER_BREAK_YEARLY:
-			timer.updateProgress(timer.idleSeconds/timer.restPeriod, timer.idleSeconds, 'Rest time: ');
+			timer.updateProgress(timer.idleSeconds/timer.restPeriod, timer.idleSeconds, 'Rest time: ', true);
 			break;
 		case timer.TYPE_USER_BREAK_WAIT_WORK:
-			timer.updateProgress(timer.odd? 0: 1, timer.idleSeconds, 'Rest time: ');
+			timer.updateProgress(timer.odd? 0: 1, timer.idleSeconds, 'Rest time: ', true);
 			break;
 	}
 }
@@ -1296,7 +1341,7 @@ timer.init = function(){
 };
 
 timer.userActive = function(){
-	air.trace('userActive');
+	log('userActive');
 	timer.isUserActive = true;
 	if(!timer.trackWorkTime)
 		return;
@@ -1314,7 +1359,7 @@ timer.userActive = function(){
 };
 
 timer.userIdle = function(){
-	air.trace('userIdle');
+	log('userIdle');
 	timer.isUserActive = false;
 	if(!timer.trackWorkTime)
 		return;

@@ -16,24 +16,24 @@
 	},
 
 	close : function(){
-		air.trace('SQL: conn closed');
+//		air.trace('SQL: conn closed');
 		this.conn.close();
 	},
 
 	onOpen : function(cb, scope){
-		air.trace('SQL: conn opened');
+//		air.trace('SQL: conn opened');
 		this.openState = true;
 		Ext.callback(cb, scope, [this]);
 		this.fireEvent('open', this);
 	},
 
 	onClose : function(){
-		air.trace('SQL: onClose');
+//		air.trace('SQL: onClose');
 		this.fireEvent('close', this);
 	},
 
 	onError : function(e, stmt, type, cb, scope){
-		air.trace('SQL: onError', type);
+//		air.trace('SQL: onError', type);
 		Ext.callback(cb, scope, [false, e, stmt]);
 	},
 
@@ -67,14 +67,14 @@
 	},
 
 	exec : function(sql, cb, scope){
-		air.trace('exec', sql);
+//		air.trace('exec', sql);
 		var stmt = this.createStatement('exec', cb, scope);
 		stmt.text = sql;
 		stmt.execute();
 	},
 
 	execBy : function(sql, args, cb, scope){
-		air.trace('execBy', sql, args);
+//		air.trace('execBy', sql, args);
 		var stmt = this.createStatement('exec', cb, scope);
 		stmt.text = sql;
 		this.addParams(stmt, args);
@@ -82,14 +82,14 @@
 	},
 
 	query : function(sql, cb, scope){
-		air.trace('query', sql);
+//		air.trace('query', sql);
 		var stmt = this.createStatement('query', cb, scope);
 		stmt.text = sql;
 		stmt.execute(this.maxResults);
 	},
 
 	queryBy : function(sql, args, cb, scope){
-		air.trace('queryBy', sql);
+//		air.trace('queryBy', sql);
 		var stmt = this.createStatement('query', cb, scope);
 		stmt.text = sql;
 		this.addParams(stmt, args);

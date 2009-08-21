@@ -46,7 +46,6 @@ conn.buildPost = function(data, method){
 		aURL += (encodeURIComponent(id)+'='+encodeURIComponent(data[id])+'&');
 	}
 	aURL += 'api_sig='+hex_md5(toMD5);
-	air.trace('toMD5 = '+toMD5+', data = '+aURL);
 	return aURL;
 }
 
@@ -75,17 +74,15 @@ conn.buildURL = function(data, method, aURL){
 		aURL += (id+'='+encodeURIComponent(data[id])+'&');
 	}
 	aURL += 'api_sig='+MD5(toMD5);
-//	air.trace('toMD5 = '+toMD5+', data = '+aURL);
 	return aURL;
 }
 
 conn.makeQuery = function(config){
 	var req = new XMLHttpRequest();
 	req.onreadystatechange = function() {
-//		air.trace(req.readyState);
         if (req.readyState == 4) {
 			conn.activeCount--;
-//			air.trace('response text: ',req.responseText);
+//			log('response text: ',req.responseText);
             var xml = req.responseXML;
 			if(!xml){
 				var code = 1;
@@ -116,7 +113,7 @@ conn.makeQuery = function(config){
 	conn.activeCount++;
 	if(!config.url)
 		config.url = this.apiURL;
-	air.trace('makeQuery to '+config.url+' with '+config.data);
+	log('makeQuery to '+config.url+' with '+config.data);
     req.open(config.data? 'POST': 'GET', config.url, config.sync? false: true);
 	req.setRequestHeader("Cache-Control", "no-cache");
 	req.send(config.data? config.data: null);
@@ -149,7 +146,7 @@ conn.getFrob = function(ok, error){
 		ok: function(xml){
 			var frob = xml.getElementsByTagName('frob').item(0).childNodes(0).nodeValue;
 			conn.frob = frob;
-			air.trace('frob = '+frob);
+//			log('frob = '+frob);
 			if(ok)
 				ok(frob);
 		},
@@ -164,7 +161,7 @@ conn.getToken = function(ok, error){
 		}, 'rtm.auth.getToken'),
 		ok: function(xml){
 			var token = xml.getElementsByTagName('token').item(0).firstChild.nodeValue;
-//			air.trace('Token: '+token);
+//			log('Token: '+token);
 			conn.authToken = token;
 			conn.setUser(xml);
 			if(ok)
@@ -182,7 +179,7 @@ conn.getLists = function(ok, error){
 			var nl = xml.getElementsByTagName('list');
 			for(var i = 0; i<nl.length; i++){
 				if(nl.item(i).getAttribute('archived')==0 && nl.item(i).getAttribute('deleted')==0){
-//					air.trace('adding list: '+nl.item(i).getAttribute('name'));
+//					log('adding list: '+nl.item(i).getAttribute('name'));
 					conn.lists.push({
 						id: nl.item(i).getAttribute('id'),
 						name: nl.item(i).getAttribute('name'),
@@ -222,7 +219,7 @@ conn.getLocations = function(ok, error){
 			conn.locations = [];
 			var nl = xml.getElementsByTagName('location');
 			for(var i = 0; i<nl.length; i++){
-//				air.trace('adding location: '+nl.item(i).getAttribute('name'), nl.item(i).getAttribute('address'));
+//				log('adding location: '+nl.item(i).getAttribute('name'), nl.item(i).getAttribute('address'));
 				conn.locations.push({
 					id: nl.item(i).getAttribute('id'),
 					name: nl.item(i).getAttribute('name'),
@@ -248,7 +245,7 @@ conn.getList = function(listid, searchString, ok, error){
 		ok: function(xml){
 			var list = xml.getElementsByTagName('list');
 			var zoneOffset = parseInt(new Date().format('Z'));
-//			air.trace('Zone offset = '+zoneOffset);
+//			log('Zone offset = '+zoneOffset);
 			for(var index = 0; index<list.length; index++){
 				var nl = list.item(index).childNodes;
 				for(var i = 0; i<nl.length; i++){
@@ -281,13 +278,13 @@ conn.getList = function(listid, searchString, ok, error){
 						task.priority = parseInt(t.getAttribute('priority')=='N'? 4: t.getAttribute('priority'));
 						task.estimate = t.getAttribute('estimate');
 						task.id = t.getAttribute('id')
-//						air.trace('Task', task.id, task.series_id, task.name, task.source, task.completed,
+//						log('Task', task.id, task.series_id, task.name, task.source, task.completed,
 //								  task.deleted, task.priority, task.estimate, task.due, task.hasTime);
 						var tags = s.getElementsByTagName('tag');
 						task.tags = [];
 						for(var j = 0; j<tags.length; j++){
 							task.tags.push(tags.item(j).firstChild.nodeValue);
-//							air.trace('Tag', task.tags[j]);
+//							log('Tag', task.tags[j]);
 						}
 						var notes = s.getElementsByTagName('note');
 						task.notes = [];
@@ -297,7 +294,7 @@ conn.getList = function(listid, searchString, ok, error){
 								title: notes.item(j).getAttribute('title'),
 								body: notes.item(j).firstChild.nodeValue
 							});
-//							air.trace('Note', task.notes[j].id, task.notes[j].title);
+//							log('Note', task.notes[j].id, task.notes[j].title);
 						}
 
 						conn.list.push(task);
@@ -312,7 +309,7 @@ conn.getList = function(listid, searchString, ok, error){
 
 conn.rollback = function(ok){
 	for(var i = conn.transactions.length-1; i>=0; i--){
-		air.trace('Rollback transaction ', i, conn.transactions[i]);
+		log('Rollback transaction ', i, conn.transactions[i]);
 		this.makeQuery({
 			sync: true,
 			url: this.buildURL({
@@ -327,7 +324,7 @@ conn.rollback = function(ok){
 }
 
 conn.addTransaction = function(xml){
-//	air.trace('conn.addTransaction check xml with', conn.timeline);
+//	log('conn.addTransaction check xml with', conn.timeline);
 	if(conn.timeline){
 		var tr = xml.getElementsByTagName('transaction');
 		if(tr.length<1)
@@ -335,7 +332,7 @@ conn.addTransaction = function(xml){
 //		if(tr.item(0).getAttribute('undoable')!='1')
 //			return;
 		conn.transactions.push(tr.item(0).getAttribute('id'));
-		air.trace('added transaction '+conn.transactions[conn.transactions.length-1], 'total', conn.transactions.length);
+		log('added transaction '+conn.transactions[conn.transactions.length-1], 'total', conn.transactions.length);
 	}
 }
 
@@ -346,7 +343,7 @@ conn.createTimeline = function(ok, error){
 		ok: function(xml){
 			conn.timeline = xml.getElementsByTagName('timeline').item(0).firstChild.nodeValue;
 			conn.transactions = [];
-			air.trace('New timeline has started', conn.timeline);
+			log('New timeline has started', conn.timeline);
 			if(ok){
 				ok(conn.timeline);
 			}
@@ -694,7 +691,7 @@ sql.setBackground = function(seriesID, background){
 sql.getSeconds = function(taskID){
 	//First, iterate over all records
 	//for(var i = 0; i < this.timeStore.getCount(); i++){
-	//	air.trace('Now in DB: ', this.timeStore.getAt(i).get('task_id'), this.timeStore.getAt(i).get('seconds'));
+	//	log('Now in DB: ', this.timeStore.getAt(i).get('task_id'), this.timeStore.getAt(i).get('seconds'));
 	//}
 	var rec = this.timeStore.getById(taskID);
 	if(rec)
