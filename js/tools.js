@@ -29,11 +29,11 @@ var escapeHTML = function(s){
 };
 
 var checkWindowVisible = function(win){
-//	air.trace('checkWindowVisible', win.instance.x, win.instance.y, win.instance.width, win.instance.height);
+//	log('checkWindowVisible', win.instance.x, win.instance.y, win.instance.width, win.instance.height);
 	var ok = false;
 	for(var i = 0; i<air.Screen.screens.length; i++){
 		var sc = air.Screen.screens[i];
-//		air.trace('Screen', i, sc.visibleBounds.x, sc.visibleBounds.y, sc.visibleBounds.width, sc.visibleBounds.height);
+//		log('Screen', i, sc.visibleBounds.x, sc.visibleBounds.y, sc.visibleBounds.width, sc.visibleBounds.height);
 		if(win.instance.x>=sc.visibleBounds.x && win.instance.y>=sc.visibleBounds.y &&
 		   win.instance.x+win.instance.width<=sc.visibleBounds.x+sc.visibleBounds.width &&
 		   win.instance.y+win.instance.height<=sc.visibleBounds.y+sc.visibleBounds.height){
@@ -78,7 +78,7 @@ var openNewWindow = function(config){
 				settings.set(config.id+'Top', event.afterBounds.y);
 			});
 			win.on('resize', function(event){
-				air.trace(event.afterBounds.width, event.afterBounds.height);
+				log(event.afterBounds.width, event.afterBounds.height);
 				settings.set(config.id+'Width', event.afterBounds.width);
 				settings.set(config.id+'Height', event.afterBounds.height);
 			});
@@ -140,4 +140,13 @@ var daysBetween = function(d1, d2){
 		return -(d1.isLeapYear()? 366: 365)+dy1-dy2;
 	}
 	return (d2.isLeapYear()? 366: 365)-dy2+dy1;
+}
+
+var log = function(){
+	return; //Release
+	var result = 'RTMD:';
+	for(var i = 0; i<arguments.length; i++){
+		result += ' '+arguments[i];
+	}
+	air.trace(result);
 }

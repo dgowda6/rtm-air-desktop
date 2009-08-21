@@ -151,6 +151,7 @@
 .icn-settings{background: url(../res/icn/settings.png) 0 0 no-repeat !important;}
 .icn-tags{background: url(../res/icn/tags.png) 0 0 no-repeat !important;}
 .icn-undo{background: url(../res/icn/undo.png) 0 0 no-repeat !important;}
+.icn-sleep{background: url(../res/icn/sleep.png) 0 0 no-repeat !important; margin: 1px;}
 .icn-{background: url(../res/icn/.png) 0 0 no-repeat !important;}
 .icn-priority-top{
 	background-color: rgb(234, 82, 0);
@@ -160,4 +161,20 @@
 }
 .icn-priority-low{
 	background-color: rgb(53, 154, 255);
+}
+
+.pointer{
+	cursor: pointer;
+}
+
+.x-progress-bar-g {
+    background-color:#7DD280;
+    background-image:url(../../../res/progress-bg.gif);
+    border-top-color:#AADFAC;
+    border-bottom-color:#6DC470;
+    border-right-color:#6DC470;
+}
+
+.x-progress-text-back-g {
+    color:#48824A;
 }

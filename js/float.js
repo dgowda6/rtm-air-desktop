@@ -25,7 +25,7 @@ var addEditNote = function(panel, opener){
 	var task = opener.conn.getTaskFromList(opener.timer.displayTask);
 	var note = null;
 	if(panel.noteID){
-		air.trace('we have noteID', panel.noteID);
+//		log('we have noteID', panel.noteID);
 		if(task){
 			for(var i = 0; i<task.notes.length; i++){
 				if(task.notes[i].id==panel.noteID){
@@ -55,18 +55,18 @@ var addEditNote = function(panel, opener){
 				opener.showError('Note is empty');
 				return false;
 			}
-			air.trace('Ready to save task title', title, 'body', body);
+			log('Ready to save task title', title, 'body', body);
 			opener.conn.createTimeline(function(tl){
 				if(newNote){
 					opener.conn.addNote(tl, task, title, body, function(n){
-						air.trace('after add title', n.title, 'body', n.body);
+//						log('after add title', n.title, 'body', n.body);
 						opener.addNote(n, window);
 					});
 				}else{
 					note.title = title;
 					note.body = body;
 					opener.conn.editNote(tl, task, note, function(n){
-						air.trace('after edit title', n.title, 'body', n.body);
+//						log('after edit title', n.title, 'body', n.body);
 						panel.setTitle(opener.escapeHTML(n.title) || 'Untitled');
 						panel.body.dom.innerHTML = opener.escapeHTML(n.body);
 						notesPanel.doLayout();
@@ -85,6 +85,8 @@ Ext.onReady(function(){
 	});
 	window.nativeWindow.activate();
 	trackProgress = new Ext.ProgressBar({
+		overCls: 'pointer',
+		tooltip: 'Double click to take a rest immediately',
 		columnWidth: 1
 	});
 	var resizePanel = new Ext.Panel({
@@ -154,7 +156,7 @@ Ext.onReady(function(){
 							value: timerDiv.dom.innerHTML
 						},
 						handler: function(data){
-//							air.trace('Validate '+data);
+//							log('Validate '+data);
 							var arr = data.split(':');
 							var secs = 0;
 
@@ -178,7 +180,7 @@ Ext.onReady(function(){
 		tools: [
 			{
 				id: 'unpin',
-				hidden: !opener.settings.get('floatOnTop'),
+				hidden: !(opener.settings.get('floatOnTop') || false),
 				handler: function(e, el, panel){
 					panel.getTool('pin').show();
 					panel.getTool('unpin').hide();
@@ -187,7 +189,7 @@ Ext.onReady(function(){
 				}
 			},{
 				id:'pin',
-				hidden: opener.settings.get('floatOnTop'),
+				hidden: opener.settings.get('floatOnTop') || false,
 				handler: function(e, el, panel){
 					panel.getTool('pin').hide();
 					panel.getTool('unpin').show();
@@ -216,7 +218,7 @@ Ext.onReady(function(){
 			single: true  // Remove the listener after first invocation
 		}
 	});
-	window.nativeWindow.alwaysInFront = opener.settings.get('floatOnTop');
+	log('Now inFront', window.nativeWindow.alwaysInFront);
 	notesPanel = new Ext.Panel({
 		region: 'east',
 		split: true,
@@ -237,7 +239,7 @@ Ext.onReady(function(){
 		]
 	});
 	notesPanel.on('resize', function(){
-		air.trace('resize', notesPanel.getWidth());
+		log('resize', notesPanel.getWidth());
 		opener.settings.set('notesPanelWidth', notesPanel.getWidth());
 	});
 	mainPanel = new Ext.Panel({
@@ -277,6 +279,10 @@ Ext.onReady(function(){
 		return false;
 	})
 	trackProgress.updateProgress(0, 'Disabled');
+	trackProgress.el.on('dblclick', function(){
+		opener.timer.barDblClick();
+		return false;
+	});
 	opener.childWindowOpened(window.nativeWindow, window);
 });
 
