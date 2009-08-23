@@ -19,6 +19,11 @@
 	color: #777777;
 	float: right;
 }
+
+.x-task-title-completed-1{
+	text-decoration: line-through !important;
+}
+
 .x-task-title-1{
 	font-weight: bold;
 }
