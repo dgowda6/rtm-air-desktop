@@ -18,7 +18,7 @@ var updateTask = null;
 var dateFormat = '';
 var timeFormat = '';
 
-var gridTpl = new Ext.XTemplate('<tpl for="."><div class="x-task-item x-task-priority{priority}"><div class="x-task-timer x-task-timer-odd-{timer_odd}">{timer}</div><div class="x-task-title x-task-title-{overdue}">{title}</div><div style="clear: both;"></div><div class="x-task-tags">{tags}</div><div class="x-task-due">{due_text}</div><div style="clear: both;"></div></div></tpl>');
+var gridTpl = new Ext.XTemplate('<tpl for="."><div class="x-task-item x-task-priority{priority}"><div class="x-task-timer x-task-timer-odd-{timer_odd}">{timer}</div><div class="x-task-title x-task-title-{overdue} x-task-title-completed-{completed}">{title}</div><div style="clear: both;"></div><div class="x-task-tags">{tags}</div><div class="x-task-due">{due_text}</div><div style="clear: both;"></div></div></tpl>');
 
 var findInGrid = function(taskID){
 	for(var i = 0; i<gridStore.getCount(); i++){
@@ -163,18 +163,19 @@ var reloadList = function(){
 	if(selectionModel.getCount()>0)
 		prevID = selectionModel.getSelected().get('id');
 	window.nativeWindow.title = titlePrefix+'Loading...';
-	conn.getList(searchString? null: currentList, searchString, function(list){
-		window.nativeWindow.title = titlePrefix;
-		for(var l in conn.lists){
-//			log(conn.lists[l].name, conn.lists[l].id, settings.get('showList'));
-			if(conn.lists[l].id==settings.get('showList'))
-				window.nativeWindow.title = titlePrefix+conn.lists[l].name;
-		}
+	var l = null;
+	for(var i in conn.lists){
+		if(conn.lists[i].id==currentList)
+			l = conn.lists[i];
+	}
+	
+	conn.getList(searchString? null: l, searchString, function(list){
+		window.nativeWindow.title = titlePrefix+(searchString? 'Search results': l.name);
 		gridStore.removeAll();
 		var now = new Date();
 		for(var i = 0; i<list.length; i++){
 			var task = list[i];
-			if(task.completed)
+			if(task.deleted)
 				continue;
 			var due = '&nbsp;';
 			var overdue = 0;
@@ -214,6 +215,7 @@ var reloadList = function(){
 				title: escapeHTML(task.name),
 				due: dueDate,
 				due_text: due,
+				completed: task.completed? 1: 0,
 				priority: task.priority,
 				tags: task.tags.join(', '),
 				overdue: overdue
@@ -899,7 +901,7 @@ Ext.onReady(function(){
 		items: [trackProgress]
 	});
 	gridStore = new Ext.data.ArrayStore({
-		fields: ['id', 'series_id', 'title', 'tags', 'due', 'due_text', 'repeated', 'estimate', 'priority', 'exec_time', 'exec_time_text', 'overdue', 'timer', 'timer_odd'],
+		fields: ['id', 'series_id', 'title', 'tags', 'due', 'due_text', 'repeated', 'estimate', 'priority', 'exec_time', 'exec_time_text', 'overdue', 'timer', 'timer_odd', 'completed'],
 		sortInfo: {
 			field: 'due',
 			direction: 'DESC'

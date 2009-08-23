@@ -235,12 +235,17 @@ conn.getLocations = function(ok, error){
 	});
 };
 
-conn.getList = function(listid, searchString, ok, error){
+conn.getList = function(l, searchString, ok, error){
+	if(!l)
+		l = {
+			id: null,
+			smart: false
+		};
 	conn.list = [];
 	this.makeQuery({
 		url: this.buildURL({
-			list_id: listid,
-			filter: searchString? searchString: 'status:incomplete'
+			list_id: l.id,
+			filter: searchString? searchString: l.smart? null: 'status:incomplete'
 		}, 'rtm.tasks.getList'),
 		ok: function(xml){
 			var list = xml.getElementsByTagName('list');
