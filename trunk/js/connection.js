@@ -649,6 +649,28 @@ conn.complete = function(timeline, task, ok, error){
 		}, error: error});
 };
 
+conn.uncomplete = function(timeline, task, ok, error){
+	this.makeQuery({
+		sync: false,
+		url: this.buildURL({
+			timeline: timeline,
+			list_id: task.list_id,
+			taskseries_id: task.series_id,
+			task_id: task.id
+		}, 'rtm.tasks.uncomplete'),
+		ok: function(xml){
+			conn.addTransaction(xml);
+			var g = xml.getElementsByTagName('generated');
+			if(g.length>0){
+				var t = g.item(0).getElementsByTagName('task');
+				if(t.length>0)
+					task.id = t.item(0).getAttribute('id');
+			}
+			if(ok)
+				ok(task);
+		}, error: error});
+};
+
 var sql = {};
 sql.init = function(){
 	this.conn = Ext.data.SqlDB.getInstance();

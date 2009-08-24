@@ -136,6 +136,10 @@
 	width: 100%;
 }
 
+.x-note-body{
+	border-bottom: 1px solid #D2E1F0 !important;
+}
+
 .icn-background{background: url(../res/icn/background.png) 0 0 no-repeat !important;}
 .icn-clock{background: url(../res/icn/clock.png) 0 0 no-repeat !important;}
 .icn-complete{background: url(../res/icn/complete.png) 0 0 no-repeat !important;}
