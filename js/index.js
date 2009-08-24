@@ -168,7 +168,7 @@ var reloadList = function(){
 		if(conn.lists[i].id==currentList)
 			l = conn.lists[i];
 	}
-	
+
 	conn.getList(searchString? null: l, searchString, function(list){
 		window.nativeWindow.title = titlePrefix+(searchString? 'Search results': l.name);
 		gridStore.removeAll();
@@ -236,6 +236,8 @@ var reloadList = function(){
 var addNote = function(note, win){
 	var panel = new win.window.Ext.Panel({
 		forceLayout: true,
+		border: false,
+		bodyCssClass: 'x-note-body',
 		title: escapeHTML(note.title) || 'Untitled',
 		html: escapeHTML(note.body),
 		tools: [
@@ -379,17 +381,24 @@ var completeTask = function(taskID){
 	var timerTask = timer.getTask(taskID);
 	var estString = secondsToEstimate(timerTask.seconds);
 	conn.createTimeline(function(tl){
-		conn.complete(tl, t, function(newTask){
-			if(settings.get('storeAsEstimate') && timerTask.seconds>0){
-				conn.setEstimate(tl, newTask, estString);
-			}
-			var d = new Date();
-			if(settings.get('storeAsNote') && timerTask.seconds>0){
-				conn.addNote(tl, newTask, d.format(dateFormat+'/y '+timeFormat), 'Task completed in '+estString);
-			}
-			reloadList();
-			timer.completeTask(taskID);
-		});
+		if(t.completed){
+			conn.uncomplete(tl, t, function(){
+				reloadList();
+				timer.completeTask(taskID);
+			});
+		}else{
+			conn.complete(tl, t, function(newTask){
+				if(settings.get('storeAsEstimate') && timerTask.seconds>0){
+					conn.setEstimate(tl, newTask, estString);
+				}
+				var d = new Date();
+				if(settings.get('storeAsNote') && timerTask.seconds>0){
+					conn.addNote(tl, newTask, d.format(dateFormat+'/y '+timeFormat), 'Task completed in '+estString);
+				}
+				reloadList();
+				timer.completeTask(taskID);
+			});
+		}
 	});
 }
 
