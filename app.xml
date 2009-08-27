@@ -2,19 +2,19 @@
 <application
 	xmlns="http://ns.adobe.com/air/application/1.5.1"
 	minimumPatchLevel="0">
-	<id>org.kostya.rtmDesktop</id>
+	<id>org.kostya.yarDesktop</id>
 	<name>
-		<text xml:lang="en">RTM Desktop</text>
+		<text xml:lang="en">YaR Desktop</text>
 	</name>
-	<version>0.1.2</version>
-	<filename>rtmDesktop</filename>
+	<version>0.1.3</version>
+	<filename>yarDesktop</filename>
 	<description>
-		<text xml:lang="en">RTM Desktop</text>
+		<text xml:lang="en">Yet another client for Remember The Milk service</text>
 	</description>
 	<copyright>Copyright 2009, Konstantin Vorobyev</copyright>
 	<initialWindow>
 		<content>html/index.html</content>
-		<title>RTM Desktop</title>
+		<title>YaR Desktop</title>
 		<systemChrome>standard</systemChrome>
 		<transparent>false</transparent>
 		<visible>false</visible>
@@ -28,8 +28,8 @@
 		<minSize>200 200</minSize>
 		<maxSize>800 800</maxSize>
 	</initialWindow>
-	<installFolder>RTM Desktop</installFolder>
-	<programMenuFolder>RTM Desktop</programMenuFolder>
+	<installFolder>YaR Desktop</installFolder>
+	<programMenuFolder>YaR Desktop</programMenuFolder>
 	<icon>
 		<image16x16>res/app/tl16.png</image16x16>
 		<image32x32>res/app/tl32.png</image32x32>
