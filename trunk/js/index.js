@@ -9,7 +9,7 @@ var addField = null;
 var statusbar = null;
 var trackPanel = null;
 var trackProgress = null;
-var titlePrefix = 'RTM Desktop: ';
+var titlePrefix = 'YaR Desktop: ';
 var selectionModel = null;
 var searchString = null;
 var listButton = null;
@@ -163,7 +163,10 @@ var reloadList = function(){
 	if(selectionModel.getCount()>0)
 		prevID = selectionModel.getSelected().get('id');
 	window.nativeWindow.title = titlePrefix+'Loading...';
-	var l = null;
+	var l = {
+		id: null,
+		name: 'Default list'
+	};
 	for(var i in conn.lists){
 		if(conn.lists[i].id==currentList)
 			l = conn.lists[i];
@@ -282,11 +285,13 @@ var showFloatWin = function(task){
 		transparent: true,
 		type: 'lightweight',
 		onTop: true,
-		width: 300,
+		width: 400,
 		height: 160,
 		afterOpen: function(win, newWin){
 //			log('Window reactivated', task.name, task.id, win.window.titleDiv.dom.innerHTML);
-			win.nativeWindow.alwaysInFront = settings.get('floatOnTop') || false;
+			win.nativeWindow.alwaysInFront = false;
+			if(settings.get('floatOnTop'))
+				win.nativeWindow.alwaysInFront = true;
 			if(newWin || timer.displayTask!=task.get('id')){
 				timer.pauseTask(timer.displayTask);
 			}
@@ -646,7 +651,7 @@ Ext.onReady(function(){
 		instance: window.nativeWindow,
 		minimizeToTray: air.NativeApplication.supportsSystemTrayIcon,
 		trayIcon: air.NativeApplication.supportsSystemTrayIcon? '../res/app/tl16.png': null,
-		trayTip: 'RTM Desktop',
+		trayTip: 'YaR Desktop',
 		width: settings.get('mainWidth') || defaultState.mainWidth,
 		height: settings.get('mainHeight') || defaultState.mainHeight
 	});
