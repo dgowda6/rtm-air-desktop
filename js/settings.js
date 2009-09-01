@@ -24,6 +24,11 @@ var inactivityDelay = null;
 var openPaused = null;
 var updateMinutes = null;
 var expandNotes = null;
+var workLocal = null;
+var fileLocation = null;
+var mask = null;
+
+var connection = null;
 
 Ext.onReady(function(){
 
@@ -32,7 +37,7 @@ Ext.onReady(function(){
 //		log('Saving token '+opener.conn.authToken);
 		opener.settings.set('authToken', opener.conn.authToken);
 		buttonStatus = 2;
-		opener.conn.getLists(function(lists){
+		connection.getLists(function(lists){
 			listsStore.removeAll();
 			showListStore.removeAll();
 			listsStore.add(new Ext.data.Record({
@@ -62,7 +67,7 @@ Ext.onReady(function(){
 		}, function(){
 			mask.hide();
 		});
-		opener.conn.getLocations(function(locs){
+		connection.getLocations(function(locs){
 			locationsStore.removeAll();
 			locationsStore.add(new Ext.data.Record({
 				id: 0,
@@ -91,7 +96,7 @@ Ext.onReady(function(){
 		width: '100%',
 		handler: function(){
 			if(buttonStatus==2){
-				opener.conn.authToken = '';
+				connection.authToken = '';
 				opener.settings.set('authToken', '');
 				buttonStatus = 0;
 				userButton.setText('Grant permission');
@@ -99,8 +104,8 @@ Ext.onReady(function(){
 				if(buttonStatus==0){
 					//Start permission
 					mask.show();
-					opener.conn.getFrob(function(frob){
-						air.navigateToURL(new air.URLRequest(opener.conn.buildURL({
+					connection.getFrob(function(frob){
+						air.navigateToURL(new air.URLRequest(connection.buildURL({
 							perms: 'delete',
 							frob: frob
 						}, null, 'http://www.rememberthemilk.com/services/auth/')));
@@ -114,8 +119,8 @@ Ext.onReady(function(){
 					});
 				}else{
 					mask.show();
-					opener.conn.getToken(function(user){
-						opener.conn.getSettings(function(s){
+					connection.getToken(function(user){
+						connection.getSettings(function(s){
 							opener.dateFormat = s.dateformat;
 							opener.timeFormat = s.timeformat;
 						});
@@ -185,6 +190,38 @@ Ext.onReady(function(){
 		valueNotFoundText: 'Invalid value',
 		fieldLabel: 'Default location for new tasks'
 	});
+
+	var fileCheckButton = new Ext.Button({
+		text: 'Check file',
+		fieldLabel: 'Local database status',
+		handler: function(){
+			connectionChanged();
+		}
+	})
+
+	var workTypeChanged = function(checked){
+		userButton.setDisabled(checked);
+		fileLocation.setDisabled(!checked);
+		fileCheckButton.setDisabled(!checked);
+	}
+
+	workType = new Ext.form.Checkbox({
+		boxLabel: 'Local mode',
+		checked: opener.settings.get('workType') || false,
+		handler: function(item, checked){
+			workTypeChanged(checked);
+			connection = checked? opener.fileconn: opener.rtmconn;
+			log('local checked: '+checked);
+			connectionChanged();
+		}
+	});
+
+	fileLocation = new Ext.form.TextField({
+		fieldLabel: 'Task list location',
+		value: opener.settings.get('fileLocation') || ''
+	});
+
+	workTypeChanged(opener.settings.get('workType') || false);
 
 	updateMinutes = new Ext.form.NumberField({
 		minValue: 1,
@@ -281,6 +318,7 @@ Ext.onReady(function(){
 		anchor: '100%'
 		},
 		items:[
+			workType, fileLocation, fileCheckButton,
 			userButton, updateMinutes, showListCombo, listsCombo, locationsCombo, showReminder, reminderMinutes,
 			storeAsEstimate, storeAsNote,
 			trackWorkTime, workTimePeriod, restPeriod, inactivityDelay, openPaused, expandNotes
@@ -289,9 +327,11 @@ Ext.onReady(function(){
 			{
 				text: 'Ok',
 				handler: function(){
-					if(opener.conn.active())
+					if(connection.active())
 						return;
 
+					opener.settings.set('workType', workType.getValue());
+					opener.settings.set('fileLocation', fileLocation.getValue());
 					opener.settings.set('defaultList', listsCombo.getValue());
 					opener.settings.set('updateMinutes', updateMinutes.getValue());
 					opener.settings.set('showList', showListCombo.getValue());
@@ -313,14 +353,15 @@ Ext.onReady(function(){
 					window.nativeWindow.close();
 					opener.updateTask.interval = (updateMinutes.getValue() || 15)*60*1000;
 					opener.currentList = showListCombo.getValue();
-					opener.conn.listsUpdated(opener.conn.lists);
+					if(opener.listsUpdated)
+						opener.listsUpdated(connection.lists);
 					opener.reloadList();
 					opener.timer.init();
 				}
 			},{
 				text: 'Cancel',
 				handler: function(){
-					if(opener.conn.active())
+					if(connection.active())
 						return;
 					window.nativeWindow.close();
 				}
@@ -332,13 +373,21 @@ Ext.onReady(function(){
 		layout: 'fit',
 		items: form
 	});
-	var mask = new Ext.LoadMask(Ext.getBody(), {msg:'Please wait...'});
-	mask.show();
-	opener.conn.checkToken(function(user){
-		tokenOk(user);
-	}, function(){
-		buttonStatus = 0;
-		userButton.setText('Grant permission');
-		mask.hide();
-	});
+	mask = new Ext.LoadMask(Ext.getBody(), {msg:'Please wait...'});
+	var connectionChanged = function(){
+		mask.show();
+		log('connectionChanged: start');
+		connection.fileName = fileLocation.getValue();
+		connection.checkToken(function(user){
+			log('connectionChanged: tokenOk');
+			tokenOk(user);
+		}, function(){
+			log('connectionChanged: error');
+			buttonStatus = 0;
+			userButton.setText('Grant permission');
+			mask.hide();
+		});
+	}
+	connection = opener.conn;
+	connectionChanged();
 });

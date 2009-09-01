@@ -72,9 +72,9 @@ Ext.extend(Ext.data.SqlDB, Ext.util.Observable, {
 	        if(f.allowNull === false || f.name == keyName){
 	        	s += ' NOT NULL';
 	        }
-	        if(f.name == keyName){
-	        	s += ' PRIMARY KEY';
-	        }
+	        //if(f.name == keyName){
+	        //	s += ' PRIMARY KEY';
+	        //}
 	        if(f.unique === true){
 	        	s += ' UNIQUE';
 	        }

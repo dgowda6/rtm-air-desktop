@@ -17,7 +17,7 @@ var currentList = null;
 var updateTask = null;
 var dateFormat = '';
 var timeFormat = '';
-
+var listsUpdated = null;
 var gridTpl = new Ext.XTemplate('<tpl for="."><div class="x-task-item x-task-priority{priority}"><div class="x-task-timer x-task-timer-odd-{timer_odd}">{timer}</div><div class="x-task-title x-task-title-{overdue} x-task-title-completed-{completed}">{title}</div><div style="clear: both;"></div><div class="x-task-tags">{tags}</div><div class="x-task-due">{due_text}</div><div style="clear: both;"></div></div></tpl>');
 
 var findInGrid = function(taskID){
@@ -55,7 +55,11 @@ var parseQuickAdd = function(data){
 			return true;
 		if(word.indexOf('~')==0)
 			return true;
-		if(word.toLowerCase()=='every' || word.toLowerCase()=='after')
+		if(word.indexOf('=')==0)
+			return true;
+		if(word.indexOf('^')==0)
+			return true;
+		if(word.indexOf('*')==0)
 			return true;
 		return false;
 	};
@@ -66,13 +70,11 @@ var parseQuickAdd = function(data){
 		tags: [],
 		location: settings.get('defaultLocation') || 0,
 		list: settings.get('defaultList') || 0,
-		repeat: '',
 		estimate: '',
 		text: '',
 		priority: 4
 	};
 
-//	log('|'+words.join('|')+'|');
 	while(wordAt<words.length){
 		var word = words[wordAt];
 		if(specWord(word)){
@@ -128,8 +130,11 @@ var parseQuickAdd = function(data){
 				wordAt += 2;
 				continue;
 			}
-			var isEstimate = word.indexOf('~')==0;
-			if(isEstimate)
+			var isEstimate = word.indexOf('~')==0 || word.indexOf('=')==0;
+			var isRepeat = word.indexOf('*')==0;
+			var isDue = word.indexOf('^')==0;
+
+			if(isEstimate || isRepeat || isDue)
 				word = word.substr(1);
 			//Search next not spec word
 			var index = 1;
@@ -140,8 +145,11 @@ var parseQuickAdd = function(data){
 			}
 			if(isEstimate)
 				result.estimate = str.trim();
-			else
-				result.repeat = str;
+			if(isRepeat)
+				result.repeat = str.trim();
+			log(isRepeat, result.repeat);
+			if(isDue)
+				result.due_text = str.trim();
 			wordAt = wordAt+index;
 			continue;
 		}
@@ -149,7 +157,6 @@ var parseQuickAdd = function(data){
 		wordAt++;
 	}
 	result.text = result.text.trim();
-//	log('Parse result:'+result.text, 'list:'+result.list, 'location:'+result.location, 'estimate:'+result.estimate, 'repeat:'+result.repeat, 'tags:'+result.tags.join(','), 'priority:'+result.priority);
 	return result;
 }
 
@@ -312,7 +319,7 @@ var showFloatWin = function(task){
 			var loc = '';
 			if(t){
 				win.window.notesDiv.setVisible(t.notes.length>0);
-				win.window.repeatDiv.setVisible(t.repeat);
+				win.window.repeatDiv.setVisible(t.repeat? true: false);
 				for(var i = 0; i<conn.locations.length; i++){
 					if(conn.locations[i].id==t.location_id){
 						win.window.locationURL = 'http://maps.google.com/?ll='+conn.locations[i].latitude+','+conn.locations[i].longitude+'&z='+conn.locations[i].zoom;
@@ -772,7 +779,7 @@ Ext.onReady(function(){
 		menu: []
 	});
 	currentList = settings.get('showList') || 0;
-	conn.listsUpdated = function(lists){
+	listsUpdated = function(lists){
 		listButton.menu.removeAll();
 		for(var i=0; i<lists.length; i++){
 			var mi = listButton.menu.addMenuItem({
@@ -1077,14 +1084,18 @@ Ext.onReady(function(){
 		}
 	});
 	searchPanel.toggleCollapse(false);
-	conn.start = function(){
+
+	fileconn.fileName = settings.get('fileLocation') || '';
+	conn = settings.get('workType')? fileconn: rtmconn;
+
+	connStart = function(){
 		statusbar.showBusy('Loading...');
 		toolbar.setDisabled(true);
 		grid.setDisabled(true);
 		topPanel.setDisabled(true);
 	}
 
-	conn.end = function(code, message){
+	connEnd = function(code, message){
 		if(message){
 			log('We got an error!', code, message);
 			statusbar.setStatus({
@@ -1115,8 +1126,8 @@ Ext.onReady(function(){
 		});
 		conn.getLocations();
 	}, function(code, message){
+		log('Check failed, '+code+':'+message);
 		showSettingsWin();
-//		log('Check failed, '+code+':'+message);
 	});
 	trackProgress.el.on('dblclick', function(){
 		timer.barDblClick();

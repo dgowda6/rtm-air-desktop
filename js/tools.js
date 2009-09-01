@@ -143,7 +143,7 @@ var daysBetween = function(d1, d2){
 }
 
 var log = function(){
-	return; //Release
+//	return; //Release
 	var result = 'RTMD:';
 	for(var i = 0; i<arguments.length; i++){
 		result += ' '+arguments[i];
