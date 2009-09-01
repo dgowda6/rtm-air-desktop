@@ -1,20 +1,21 @@
-var conn = {};
-conn.apiKey = '6a0f2df056721fb0f6ec9dfd04973053';
-conn.secret = '7fafbe6a8c6ff6b7';
-conn.start = null;
-conn.end = null;
-conn.authToken = '';
-conn.lists = [];
-conn.listsUpdated = null;
-conn.locations = [];
-conn.timeline = null;
-conn.transactions = [];
-conn.activeCount = 0;
-conn.list = [];
-conn.apiURL = 'http://api.rememberthemilk.com/services/rest/';
+var connStart = null;
+var connEnd = null;
+
+var rtmconn = {};
+var conn = rtmconn;
+rtmconn.apiKey = '6a0f2df056721fb0f6ec9dfd04973053';
+rtmconn.secret = '7fafbe6a8c6ff6b7';
+rtmconn.authToken = '';
+rtmconn.lists = [];
+rtmconn.locations = [];
+rtmconn.timeline = null;
+rtmconn.transactions = [];
+rtmconn.activeCount = 0;
+rtmconn.list = [];
+rtmconn.apiURL = 'http://api.rememberthemilk.com/services/rest/';
 //conn.apiURL = 'http://localhost:12088/api/';
 
-conn.getTaskFromList = function(id){
+rtmconn.getTaskFromList = function(id){
 	for(var i = 0; i<this.list.length; i++){
 		if(this.list[i].id==id)
 			return this.list[i];
@@ -22,17 +23,17 @@ conn.getTaskFromList = function(id){
 	return null;
 }
 
-conn.active = function(){
+rtmconn.active = function(){
 	return this.activeCount>0;
 }
 
-conn.buildPost = function(data, method){
+rtmconn.buildPost = function(data, method){
 	var aURL = '';
-	var toMD5 = conn.secret;
+	var toMD5 = rtmconn.secret;
 	var ids = [];
 	data.api_key = this.apiKey;
 	data.method = method;
-	data.auth_token = conn.authToken;
+	data.auth_token = rtmconn.authToken;
 	for(var id in data){
 		if(data[id]){
 			ids.push(id);
@@ -49,16 +50,16 @@ conn.buildPost = function(data, method){
 	return aURL;
 }
 
-conn.buildURL = function(data, method, aURL){
+rtmconn.buildURL = function(data, method, aURL){
 	if(!aURL)
 		aURL = this.apiURL;
 	aURL += '?';
-	var toMD5 = conn.secret;
+	var toMD5 = rtmconn.secret;
 	var ids = [];
 	data.api_key = this.apiKey;
 	if(method){
 		data.method = method;
-		data.auth_token = conn.authToken;
+		data.auth_token = rtmconn.authToken;
 	}else{
 	}
 	for(var id in data){
@@ -77,11 +78,11 @@ conn.buildURL = function(data, method, aURL){
 	return aURL;
 }
 
-conn.makeQuery = function(config){
+rtmconn.makeQuery = function(config){
 	var req = new XMLHttpRequest();
 	req.onreadystatechange = function() {
         if (req.readyState == 4) {
-			conn.activeCount--;
+			rtmconn.activeCount--;
 //			log('response text: ',req.responseText);
             var xml = req.responseXML;
 			if(!xml){
@@ -89,8 +90,8 @@ conn.makeQuery = function(config){
 				var msg = 'Can\'t connect to RTM host';
 				if(config.error)
 					config.error(code, msg);
-				if(conn.end && conn.activeCount==0)
-					conn.end(code, msg);
+				if(connEnd && conn.activeCount==0)
+					connEnd(code, msg);
 				return;
 			}
 			if(xml.getElementsByTagName("err").length>0){
@@ -98,19 +99,19 @@ conn.makeQuery = function(config){
 				var msg = xml.getElementsByTagName("err").item(0).getAttribute('msg');
 				if(config.error)
 					config.error(code, msg);
-				if(conn.end && conn.activeCount==0)
-					conn.end(code, msg);
+				if(connEnd && conn.activeCount==0)
+					connEnd(code, msg);
 			}else{
 				if(config.ok)
 					config.ok(xml);
-				if(conn.end && conn.activeCount==0)
-					conn.end();
+				if(connEnd && conn.activeCount==0)
+					connEnd();
 			}
         }
     };
-	if(conn.start && conn.activeCount==0)
-		conn.start();
-	conn.activeCount++;
+	if(connStart && rtmconn.activeCount==0)
+		connStart();
+	rtmconn.activeCount++;
 	if(!config.url)
 		config.url = this.apiURL;
 	log('makeQuery to '+config.url+' with '+config.data);
@@ -119,7 +120,7 @@ conn.makeQuery = function(config){
 	req.send(config.data? config.data: null);
 }
 
-conn.setUser = function(xml){
+rtmconn.setUser = function(xml){
 	var user = {};
 	user.id = xml.getElementsByTagName('user').item(0).getAttribute('id');
 	user.username = xml.getElementsByTagName('user').item(0).getAttribute('username');
@@ -128,24 +129,24 @@ conn.setUser = function(xml){
 	return user;
 }
 
-conn.checkToken = function(ok, error){
+rtmconn.checkToken = function(ok, error){
 	this.makeQuery({
 		url: this.buildURL({}, 'rtm.auth.checkToken'),
 		ok: function(xml){
-			conn.setUser(xml);
+			rtmconn.setUser(xml);
 			if(ok)
-				ok(conn.user);
+				ok(rtmconn.user);
 		},
 		error: error
 	});
 }
 
-conn.getFrob = function(ok, error){
+rtmconn.getFrob = function(ok, error){
 	this.makeQuery({
 		url: this.buildURL({}, 'rtm.auth.getFrob'),
 		ok: function(xml){
 			var frob = xml.getElementsByTagName('frob').item(0).childNodes(0).nodeValue;
-			conn.frob = frob;
+			rtmconn.frob = frob;
 //			log('frob = '+frob);
 			if(ok)
 				ok(frob);
@@ -154,33 +155,33 @@ conn.getFrob = function(ok, error){
 	});
 }
 
-conn.getToken = function(ok, error){
+rtmconn.getToken = function(ok, error){
 	this.makeQuery({
 		url: this.buildURL({
-			frob: conn.frob
+			frob: rtmconn.frob
 		}, 'rtm.auth.getToken'),
 		ok: function(xml){
 			var token = xml.getElementsByTagName('token').item(0).firstChild.nodeValue;
 //			log('Token: '+token);
-			conn.authToken = token;
-			conn.setUser(xml);
+			rtmconn.authToken = token;
+			rtmconn.setUser(xml);
 			if(ok)
-				ok(conn.user);
+				ok(rtmconn.user);
 		},
 		error: error
 	});
 }
 
-conn.getLists = function(ok, error){
+rtmconn.getLists = function(ok, error){
 	this.makeQuery({
 		url: this.buildURL({}, 'rtm.lists.getList'),
 		ok: function(xml){
-			conn.lists = [];
+			rtmconn.lists = [];
 			var nl = xml.getElementsByTagName('list');
 			for(var i = 0; i<nl.length; i++){
 				if(nl.item(i).getAttribute('archived')==0 && nl.item(i).getAttribute('deleted')==0){
 //					log('adding list: '+nl.item(i).getAttribute('name'));
-					conn.lists.push({
+					rtmconn.lists.push({
 						id: nl.item(i).getAttribute('id'),
 						name: nl.item(i).getAttribute('name'),
 						locked: nl.item(i).getAttribute('locked')!=0,
@@ -188,15 +189,15 @@ conn.getLists = function(ok, error){
 					});
 				}
 			}
-			if(conn.listsUpdated)
-				conn.listsUpdated(conn.lists);
+			if(listsUpdated)
+				listsUpdated(conn.lists);
 			if(ok)
-				ok(conn.lists);
+				ok(rtmconn.lists);
 		}, error: error
 	});
 }
 
-conn.getSettings = function(ok, error){
+rtmconn.getSettings = function(ok, error){
 	this.makeQuery({
 		url: this.buildURL({}, 'rtm.settings.getList'),
 		sync: true,
@@ -212,15 +213,15 @@ conn.getSettings = function(ok, error){
 	});
 };
 
-conn.getLocations = function(ok, error){
+rtmconn.getLocations = function(ok, error){
 	this.makeQuery({
 		url: this.buildURL({}, 'rtm.locations.getList'),
 		ok: function(xml){
-			conn.locations = [];
+			rtmconn.locations = [];
 			var nl = xml.getElementsByTagName('location');
 			for(var i = 0; i<nl.length; i++){
 //				log('adding location: '+nl.item(i).getAttribute('name'), nl.item(i).getAttribute('address'));
-				conn.locations.push({
+				rtmconn.locations.push({
 					id: nl.item(i).getAttribute('id'),
 					name: nl.item(i).getAttribute('name'),
 					address: nl.item(i).getAttribute('address'),
@@ -230,18 +231,18 @@ conn.getLocations = function(ok, error){
 				});
 			}
 			if(ok)
-				ok(conn.locations);
+				ok(rtmconn.locations);
 		}, error: error
 	});
 };
 
-conn.getList = function(l, searchString, ok, error){
+rtmconn.getList = function(l, searchString, ok, error){
 	if(!l)
 		l = {
 			id: null,
 			smart: false
 		};
-	conn.list = [];
+	rtmconn.list = [];
 	this.makeQuery({
 		url: this.buildURL({
 			list_id: l.id,
@@ -302,60 +303,60 @@ conn.getList = function(l, searchString, ok, error){
 //							log('Note', task.notes[j].id, task.notes[j].title);
 						}
 
-						conn.list.push(task);
+						rtmconn.list.push(task);
 					}
 				}
 			}
 			if(ok)
-				ok(conn.list);
+				ok(rtmconn.list);
 		}, error: error
 	})
 };
 
-conn.rollback = function(ok){
-	for(var i = conn.transactions.length-1; i>=0; i--){
-		log('Rollback transaction ', i, conn.transactions[i]);
+rtmconn.rollback = function(ok){
+	for(var i = rtmconn.transactions.length-1; i>=0; i--){
+		log('Rollback transaction ', i, rtmconn.transactions[i]);
 		this.makeQuery({
 			sync: true,
 			url: this.buildURL({
-				timeline: conn.timeline,
-				transaction_id: conn.transactions[i]
+				timeline: rtmconn.timeline,
+				transaction_id: rtmconn.transactions[i]
 			}, 'rtm.transactions.undo')
 		});
 	}
-	conn.transactions = [];
+	rtmconn.transactions = [];
 	if(ok)
 		ok();
 }
 
-conn.addTransaction = function(xml){
+rtmconn.addTransaction = function(xml){
 //	log('conn.addTransaction check xml with', conn.timeline);
-	if(conn.timeline){
+	if(rtmconn.timeline){
 		var tr = xml.getElementsByTagName('transaction');
 		if(tr.length<1)
 			return;
 //		if(tr.item(0).getAttribute('undoable')!='1')
 //			return;
-		conn.transactions.push(tr.item(0).getAttribute('id'));
-		log('added transaction '+conn.transactions[conn.transactions.length-1], 'total', conn.transactions.length);
+		rtmconn.transactions.push(tr.item(0).getAttribute('id'));
+		log('added transaction '+rtmconn.transactions[rtmconn.transactions.length-1], 'total', rtmconn.transactions.length);
 	}
 }
 
-conn.createTimeline = function(ok, error){
+rtmconn.createTimeline = function(ok, error){
 	this.makeQuery({
 		sync: false,
 		url: this.buildURL({}, 'rtm.timelines.create'),
 		ok: function(xml){
-			conn.timeline = xml.getElementsByTagName('timeline').item(0).firstChild.nodeValue;
-			conn.transactions = [];
+			rtmconn.timeline = xml.getElementsByTagName('timeline').item(0).firstChild.nodeValue;
+			rtmconn.transactions = [];
 			log('New timeline has started', conn.timeline);
 			if(ok){
-				ok(conn.timeline);
+				ok(rtmconn.timeline);
 			}
 		}, error: error});
 };
 
-conn.addTask = function(timeline, name, list_id, ok, error){
+rtmconn.addTask = function(timeline, name, list_id, ok, error){
 	this.makeQuery({
 		url: this.buildURL({
 			timeline: timeline,
@@ -364,7 +365,7 @@ conn.addTask = function(timeline, name, list_id, ok, error){
 			parse: true
 		}, 'rtm.tasks.add'),
 		ok: function(xml){
-			conn.addTransaction(xml);
+			rtmconn.addTransaction(xml);
 			if(ok)
 				ok({
 					id: xml.getElementsByTagName('task').item(0).getAttribute('id'),
@@ -374,7 +375,7 @@ conn.addTask = function(timeline, name, list_id, ok, error){
 		}, error: error});
 };
 
-conn.addSmartList = function(timeline, name, filter, ok, error){
+rtmconn.addSmartList = function(timeline, name, filter, ok, error){
 	this.makeQuery({
 		url: this.buildURL({
 			timeline: timeline,
@@ -382,7 +383,7 @@ conn.addSmartList = function(timeline, name, filter, ok, error){
 			filter: filter
 		}, 'rtm.lists.add'),
 		ok: function(xml){
-			conn.addTransaction(xml);
+			rtmconn.addTransaction(xml);
 			if(ok)
 				ok({
 					id: xml.getElementsByTagName('list').item(0).getAttribute('id'),
@@ -391,7 +392,7 @@ conn.addSmartList = function(timeline, name, filter, ok, error){
 		}, error: error});
 };
 
-conn.setTags = function(timeline, task, tags, ok, error){
+rtmconn.setTags = function(timeline, task, tags, ok, error){
 	this.makeQuery({
 		sync: true,
 		url: this.buildURL({
@@ -402,13 +403,13 @@ conn.setTags = function(timeline, task, tags, ok, error){
 			tags: tags
 		}, 'rtm.tasks.setTags'),
 		ok: function(xml){
-			conn.addTransaction(xml);
+			rtmconn.addTransaction(xml);
 			if(ok)
 				ok();
 		}, error: error});
 };
 
-conn.setEstimate = function(timeline, task, estimate, ok, error){
+rtmconn.setEstimate = function(timeline, task, estimate, ok, error){
 	this.makeQuery({
 		sync: true,
 		url: this.buildURL({
@@ -419,13 +420,13 @@ conn.setEstimate = function(timeline, task, estimate, ok, error){
 			estimate: estimate
 		}, 'rtm.tasks.setEstimate'),
 		ok: function(xml){
-			conn.addTransaction(xml);
+			rtmconn.addTransaction(xml);
 			if(ok)
 				ok();
 		}, error: error});
 };
 
-conn.setLocation = function(timeline, task, location, ok, error){
+rtmconn.setLocation = function(timeline, task, location, ok, error){
 	this.makeQuery({
 		sync: true,
 		url: this.buildURL({
@@ -436,13 +437,13 @@ conn.setLocation = function(timeline, task, location, ok, error){
 			location_id: location
 		}, 'rtm.tasks.setLocation'),
 		ok: function(xml){
-			conn.addTransaction(xml);
+			rtmconn.addTransaction(xml);
 			if(ok)
 				ok();
 		}, error: error});
 };
 
-conn.addNote = function(timeline, task, title, body, ok, error){
+rtmconn.addNote = function(timeline, task, title, body, ok, error){
 	this.makeQuery({
 		sync: true,
 		url: this.buildURL({
@@ -462,13 +463,13 @@ conn.addNote = function(timeline, task, title, body, ok, error){
 					body: note.firstChild.nodeValue
 				});
 			}
-			conn.addTransaction(xml);
+			rtmconn.addTransaction(xml);
 			if(ok)
 				ok(task.notes[task.notes.length-1]);
 		}, error: error});
 };
 
-conn.editNote = function(timeline, task, note, ok, error){
+rtmconn.editNote = function(timeline, task, note, ok, error){
 	this.makeQuery({
 		sync: true,
 		url: this.buildURL({
@@ -483,13 +484,13 @@ conn.editNote = function(timeline, task, note, ok, error){
 				note.title = n.getAttribute('title'),
 				note.body = n.firstChild.nodeValue
 			}
-			conn.addTransaction(xml);
+			rtmconn.addTransaction(xml);
 			if(ok)
 				ok(note);
 		}, error: error});
 };
 
-conn.deleteNote = function(timeline, task, note, ok, error){
+rtmconn.deleteNote = function(timeline, task, note, ok, error){
 	this.makeQuery({
 		sync: true,
 		url: this.buildURL({
@@ -497,7 +498,7 @@ conn.deleteNote = function(timeline, task, note, ok, error){
 			note_id: note.id
 		}, 'rtm.tasks.notes.delete'),
 		ok: function(xml){
-			conn.addTransaction(xml);
+			rtmconn.addTransaction(xml);
 			for(var i = 0; i<task.notes.length; i++){
 				if(task.notes[i].id==note.id){
 					task.notes.splice(i, 1);
@@ -509,7 +510,7 @@ conn.deleteNote = function(timeline, task, note, ok, error){
 		}, error: error});
 };
 
-conn.setPriority = function(timeline, task, priority, ok, error){
+rtmconn.setPriority = function(timeline, task, priority, ok, error){
 	this.makeQuery({
 		sync: true,
 		url: this.buildURL({
@@ -520,13 +521,13 @@ conn.setPriority = function(timeline, task, priority, ok, error){
 			priority: priority
 		}, 'rtm.tasks.setPriority'),
 		ok: function(xml){
-			conn.addTransaction(xml);
+			rtmconn.addTransaction(xml);
 			if(ok)
 				ok();
 		}, error: error});
 };
 
-conn.setRecurrence = function(timeline, task, repeat, ok, error){
+rtmconn.setRecurrence = function(timeline, task, repeat, ok, error){
 	this.makeQuery({
 		sync: true,
 		url: this.buildURL({
@@ -537,13 +538,13 @@ conn.setRecurrence = function(timeline, task, repeat, ok, error){
 			repeat: repeat
 		}, 'rtm.tasks.setRecurrence'),
 		ok: function(xml){
-			conn.addTransaction(xml);
+			rtmconn.addTransaction(xml);
 			if(ok)
 				ok();
 		}, error: error});
 };
 
-conn.setName = function(timeline, task, name, ok, error){
+rtmconn.setName = function(timeline, task, name, ok, error){
 	this.makeQuery({
 		sync: true,
 		url: this.buildURL({
@@ -554,13 +555,13 @@ conn.setName = function(timeline, task, name, ok, error){
 			name: name
 		}, 'rtm.tasks.setName'),
 		ok: function(xml){
-			conn.addTransaction(xml);
+			rtmconn.addTransaction(xml);
 			if(ok)
 				ok();
 		}, error: error});
 };
 
-conn.setDueDate = function(timeline, task, due, ok, error){
+rtmconn.setDueDate = function(timeline, task, due, ok, error){
 	this.makeQuery({
 		sync: true,
 		url: this.buildURL({
@@ -572,13 +573,13 @@ conn.setDueDate = function(timeline, task, due, ok, error){
 			due: due
 		}, 'rtm.tasks.setDueDate'),
 		ok: function(xml){
-			conn.addTransaction(xml);
+			rtmconn.addTransaction(xml);
 			if(ok)
 				ok();
 		}, error: error});
 };
 
-conn.deleteTask = function(timeline, task, ok, error){
+rtmconn.deleteTask = function(timeline, task, ok, error){
 	this.makeQuery({
 		sync: true,
 		url: this.buildURL({
@@ -588,13 +589,13 @@ conn.deleteTask = function(timeline, task, ok, error){
 			task_id: task.id
 		}, 'rtm.tasks.delete'),
 		ok: function(xml){
-			conn.addTransaction(xml);
+			rtmconn.addTransaction(xml);
 			if(ok)
 				ok();
 		}, error: error});
 };
 
-conn.postpone = function(timeline, task, ok, error){
+rtmconn.postpone = function(timeline, task, ok, error){
 	this.makeQuery({
 		sync: true,
 		url: this.buildURL({
@@ -604,13 +605,13 @@ conn.postpone = function(timeline, task, ok, error){
 			task_id: task.id
 		}, 'rtm.tasks.postpone'),
 		ok: function(xml){
-			conn.addTransaction(xml);
+			rtmconn.addTransaction(xml);
 			if(ok)
 				ok();
 		}, error: error});
 };
 
-conn.setList = function(timeline, task, list_id, ok, error){
+rtmconn.setList = function(timeline, task, list_id, ok, error){
 	this.makeQuery({
 		sync: true,
 		url: this.buildURL({
@@ -621,13 +622,13 @@ conn.setList = function(timeline, task, list_id, ok, error){
 			to_list_id: list_id
 		}, 'rtm.tasks.moveTo'),
 		ok: function(xml){
-			conn.addTransaction(xml);
+			rtmconn.addTransaction(xml);
 			if(ok)
 				ok();
 		}, error: error});
 };
 
-conn.complete = function(timeline, task, ok, error){
+rtmconn.complete = function(timeline, task, ok, error){
 	this.makeQuery({
 		sync: false,
 		url: this.buildURL({
@@ -637,7 +638,7 @@ conn.complete = function(timeline, task, ok, error){
 			task_id: task.id
 		}, 'rtm.tasks.complete'),
 		ok: function(xml){
-			conn.addTransaction(xml);
+			rtmconn.addTransaction(xml);
 			var g = xml.getElementsByTagName('generated');
 			if(g.length>0){
 				var t = g.item(0).getElementsByTagName('task');
@@ -649,7 +650,7 @@ conn.complete = function(timeline, task, ok, error){
 		}, error: error});
 };
 
-conn.uncomplete = function(timeline, task, ok, error){
+rtmconn.uncomplete = function(timeline, task, ok, error){
 	this.makeQuery({
 		sync: false,
 		url: this.buildURL({
@@ -659,7 +660,7 @@ conn.uncomplete = function(timeline, task, ok, error){
 			task_id: task.id
 		}, 'rtm.tasks.uncomplete'),
 		ok: function(xml){
-			conn.addTransaction(xml);
+			rtmconn.addTransaction(xml);
 			var g = xml.getElementsByTagName('generated');
 			if(g.length>0){
 				var t = g.item(0).getElementsByTagName('task');
@@ -676,22 +677,22 @@ sql.init = function(){
 	this.conn = Ext.data.SqlDB.getInstance();
 	this.conn.open('rtm.db');
 	this.timeRecord = Ext.data.Record.create([
-		{name: 'task_id', type:'int'},
-		{name: 'seconds', type:'int'}
+		{name: 'seconds', type:'int'},
+		{name: 'task_id', type:'string'}
 	]);
 	var proxy = new Ext.data.SqlDB.Proxy(this.conn, 'time', 'task_id', {
 		recordType: this.timeRecord,
-		idIndex: 0
+		idIndex: 1
 	});
 	this.timeStore = proxy.store;
 	this.timeStore.load();
 	this.backgroundRecord = Ext.data.Record.create([
-		{name: 'taskseries_id', type:'int'},
-		{name: 'background', type:'int'}
+		{name: 'background', type:'int'},
+		{name: 'taskseries_id', type:'string'}
 	]);
 	var backgroundProxy = new Ext.data.SqlDB.Proxy(this.conn, 'backgrounds', 'taskseries_id', {
 		recordType: this.backgroundRecord,
-		idIndex: 0
+		idIndex: 1
 	});
 	this.backgroundStore = backgroundProxy.store;
 	this.backgroundStore.load();
