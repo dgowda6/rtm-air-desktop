@@ -9,10 +9,11 @@ var addField = null;
 var statusbar = null;
 var trackPanel = null;
 var trackProgress = null;
-var titlePrefix = 'YaR Desktop: ';
+var titlePrefix = 'YaR Desktop[L]: ';
 var selectionModel = null;
 var searchString = null;
 var listButton = null;
+var addListMenu = null;
 var currentList = null;
 var updateTask = null;
 var dateFormat = '';
@@ -28,22 +29,54 @@ var findInGrid = function(taskID){
 	}
 	return null;
 }
-var parseQuickAdd = function(data){
-	var splitWith = function(data, delim){
-		var arr = [];
-		while(data.indexOf(delim)!=-1){
-			arr.push(data.substr(0, data.indexOf(delim)));
-			data = data.substr(data.indexOf(delim));
-			var lookFrom = delim.length;
-			while(data.substr(lookFrom, delim.length)==delim)
-				lookFrom += delim.length;
-			arr.push(data.substr(0, lookFrom));
-			data = data.substr(lookFrom);
-		}
-		if(data.length>0)
-			arr.push(data);
-		return arr;
+
+var fromArray = function(word, arr){
+	if(!word)
+		return false;
+	var w = word.toLowerCase().trim();
+	for(var i = 0; i<arr.length; i++){
+		if(w==arr[i].toLowerCase().trim())
+			return true;
 	}
+	return false;
+}
+
+var splitWith = function(data, delim, skipDelim){
+	var arr = [];
+	while(data.indexOf(delim)!=-1){
+		var dPointer = data.indexOf(delim);
+		var word = data.substr(0, dPointer);
+		var dquotes = word.indexOf('"');
+		if(dquotes!=-1){
+			//We have double quotes here, search next dquotes
+			var nextquotes = data.indexOf('"', dPointer+1);
+			if(nextquotes==-1){
+				nextquotes = data.length;
+			}
+			var delimAfterQuotes = data.indexOf(delim, nextquotes);
+			if(delimAfterQuotes==-1){
+				//No delimiters after quotes
+				word = data;
+				arr.push(word);
+				return arr;
+			}
+			dPointer = delimAfterQuotes;
+			word = data.substr(0, dPointer);
+		}
+		arr.push(word);
+		data = data.substr(dPointer);
+		var lookFrom = delim.length;
+		while(data.substr(lookFrom, delim.length)==delim)
+			lookFrom += delim.length;
+		if(!skipDelim)
+			arr.push(data.substr(0, lookFrom));
+		data = data.substr(lookFrom);
+	}
+	if(data.length>0)
+		arr.push(data);
+	return arr;
+}
+var parseQuickAdd = function(data){
 	var specWord = function(word){
 		if(word.indexOf('#')==0)
 			return true;
@@ -68,7 +101,7 @@ var parseQuickAdd = function(data){
 	var wordAt = 0;
 	var result = {
 		tags: [],
-		location: settings.get('defaultLocation') || 0,
+		location: settings.get('defaultLocation') || '',
 		list: settings.get('defaultList') || 0,
 		estimate: '',
 		text: '',
@@ -105,12 +138,7 @@ var parseQuickAdd = function(data){
 					word = '@'+words[wordAt];
 				}
 				var location = word.substr(1).toLowerCase();
-				for(var i = 0; i<conn.locations.length; i++){
-					if(conn.locations[i].name.toLowerCase().indexOf(location)==0){
-						result.location = conn.locations[i].id;
-						break;
-					}
-				}
+				result.location = location;
 				wordAt += 2;
 				continue;
 			}
@@ -147,7 +175,6 @@ var parseQuickAdd = function(data){
 				result.estimate = str.trim();
 			if(isRepeat)
 				result.repeat = str.trim();
-			log(isRepeat, result.repeat);
 			if(isDue)
 				result.due_text = str.trim();
 			wordAt = wordAt+index;
@@ -211,7 +238,7 @@ var reloadList = function(){
 					overdue = 2;
 				if(task.hasTime)
 					due += ' '+task.due.format(timeFormat);
-				task.due_text = due;
+//				task.due_text = due;
 			}else{
 
 			}
@@ -320,8 +347,11 @@ var showFloatWin = function(task){
 			if(t){
 				win.window.notesDiv.setVisible(t.notes.length>0);
 				win.window.repeatDiv.setVisible(t.repeat? true: false);
+				win.window.locationURL = 'http://maps.google.com/';
+				log('location', t.location);
+				loc = t.location;
 				for(var i = 0; i<conn.locations.length; i++){
-					if(conn.locations[i].id==t.location_id){
+					if(conn.locations[i].name==t.location){
 						win.window.locationURL = 'http://maps.google.com/?ll='+conn.locations[i].latitude+','+conn.locations[i].longitude+'&z='+conn.locations[i].zoom;
 						loc = conn.locations[i].name;
 					}
@@ -362,6 +392,8 @@ var showSettingsWin = function(){
 };
 
 var secondsToEstimate = function(seconds){
+	if(seconds==0)
+		return null;
 	var secs = seconds;
 	var estString = '';
 	var hours = Math.floor(secs/3600);
@@ -400,6 +432,7 @@ var completeTask = function(taskID){
 			});
 		}else{
 			conn.complete(tl, t, function(newTask){
+//				log('task completed seconds', timerTask.seconds);
 				if(settings.get('storeAsEstimate') && timerTask.seconds>0){
 					conn.setEstimate(tl, newTask, estString);
 				}
@@ -453,7 +486,8 @@ var doSetList = function(){
 	var t = conn.getTaskFromList(selectionModel.getSelected().get('id')) || {};
 	var list = '';
 	for(var i = 0; i<conn.lists.length; i++){
-		if(conn.lists[i].id==t.list_id)
+		log('doSetList', conn.lists[i].id, t.list_id);
+		if(conn.lists[i].id.toLowerCase()==t.list_id.toLowerCase())
 			list = conn.lists[i].name;
 	}
 	showDialog({
@@ -481,16 +515,11 @@ var doSetLocation = function(){
 	if(selectionModel.getCount()<=0)
 		return;
 	var t = conn.getTaskFromList(selectionModel.getSelected().get('id')) || {};
-	var location = '';
-	for(var i = 0; i<conn.locations.length; i++){
-		if(conn.locations[i].id==t.location_id)
-			location = conn.locations[i].name;
-	}
 	showDialog({
 		field:{
 			xtype: 'textfield',
 			fieldLabel: 'Enter new location',
-			value: location
+			value: t.location
 		},
 		handler: function(data){
 			if(!data || data.trim()==''){
@@ -499,16 +528,10 @@ var doSetLocation = function(){
 				});
 				return true;
 			}
-			for(var i = 0; i<conn.locations.length; i++){
-				if(conn.locations[i].name.toLowerCase().indexOf(data.toLowerCase())==0){
-					conn.createTimeline(function(tl){
-						conn.setLocation(tl, t, conn.locations[i].id, reloadList);
-					});
-					return true;
-				}
-			}
-			showError('Can\'t find location '+data);
-			return false;
+			conn.createTimeline(function(tl){
+				conn.setLocation(tl, t, data, reloadList);
+			});
+			return true;
 		}
 	})
 };
@@ -558,7 +581,7 @@ var doSetRepeat = function(){
 		field:{
 			xtype: 'textfield',
 			fieldLabel: 'Enter recurrence',
-			value: ''
+			value: t.repeat? t.repeat === true? '': t.repeat: ''
 		},
 		handler: function(data){
 			conn.createTimeline(function(tl){
@@ -683,17 +706,7 @@ Ext.onReady(function(){
 			var data = parseQuickAdd(item.getValue());
 			if(data.text){
 				conn.createTimeline(function(tl){
-					conn.addTask(tl, data.text, data.list, function(task){
-						if(data.estimate)
-							conn.setEstimate(tl, task, data.estimate);
-						if(data.tags.length>0)
-							conn.setTags(tl, task, data.tags.join(','));
-						if(data.location)
-							conn.setLocation(tl, task, data.location);
-						if(data.priority<4)
-							conn.setPriority(tl, task, data.priority);
-						if(data.repeat)
-							conn.setRecurrence(tl, task, data.repeat);
+					conn.createTask(tl, data, function(task){
 						item.setValue('');
 						item.focus(false, 10);
 						reloadList();
@@ -781,7 +794,36 @@ Ext.onReady(function(){
 	currentList = settings.get('showList') || 0;
 	listsUpdated = function(lists){
 		listButton.menu.removeAll();
-		for(var i=0; i<lists.length; i++){
+		addListMenu = new Ext.menu.Item({
+			text: 'Add new list',
+			handler: function(){
+				//Add menu here
+				showDialog({
+					field:{
+						xtype: 'textfield',
+						fieldLabel: 'Enter list name',
+						value: ''
+					},
+					handler: function(data){
+						if(data && data!=''){
+							conn.createTimeline(function(tl){
+								conn.addSmartList(tl, data, null, function(){
+									conn.getLists(function(){});
+								});
+							});
+							return true;
+						}else{
+							showError('Invalid list name');
+							return false;
+						}
+					}
+				});
+			}
+		});
+		listButton.menu.add(addListMenu);
+		listButton.menu.add(new Ext.menu.Separator());
+
+		for(var i = 0; i<lists.length; i++){
 			var mi = listButton.menu.addMenuItem({
 				text: lists[i].name,
 				checked: lists[i].id==currentList,

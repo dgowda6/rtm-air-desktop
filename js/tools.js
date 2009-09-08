@@ -97,15 +97,16 @@ var showError = function(aMessage){
 	alert(aMessage);
 }
 
+
 Date.precompileFormats = function(s){
     var formats = s.split('|');
     for (var i = 0, len = formats.length; i < len; i++) {
-	Date.createFormat(formats[i]);
+		Date.createFormat(formats[i]);
         Date.createParser(formats[i]);
     }
 }
 
-Date.precompileFormats("Y-m-d\\TH:i:s\\Z|Z|n/j|g:i a|l|Y|Y-m-d|z|n/j/y g:i a|j/n/y g:i a|n/j/y G:i|j/n/y G:i|j/n|G:i");
+Date.precompileFormats("Y-m-d\\TH:i:s\\Z|Z|n/j|g:i a|l|Y|Y-m-d|z|n/j/y g:i a|j/n/y g:i a|n/j/y G:i|j/n/y G:i|j/n|G:i|N");
 
 Ext.menu.Item.prototype.itemTpl=new Ext.XTemplate(
     '<a id="{id}" class="{cls}" hidefocus="true" unselectable="on" href="{href}"',
@@ -128,6 +129,24 @@ Ext.layout.MenuLayout.itemTpl=Ext.layout.MenuLayout.prototype.itemTpl=new Ext.XT
     '</li>'
 );
 
+var generateRandomString = function(num){
+	var chars = 'qwertyuiopasdfghjklzxcvbnm';
+	var rstr = '';
+	for (var i=0; i < num; i++) {
+		var rnum = Math.floor(Math.random() * chars.length);
+		rstr += chars.substring(rnum, rnum+1);
+	}
+	return rstr;
+}
+
+String.prototype.startsWith = function(str) {
+	return this.indexOf(str)==0;
+};
+
+String.prototype.endsWith = function(str) {
+	return this.lastIndexOf(str)==this.length-1 && this.length>0;
+};
+
 var daysBetween = function(d1, d2){
 	var y1 = parseInt(d1.format('Y'));
 	var y2 = parseInt(d2.format('Y'));
@@ -143,7 +162,7 @@ var daysBetween = function(d1, d2){
 }
 
 var log = function(){
-//	return; //Release
+	return; //Release
 	var result = 'RTMD:';
 	for(var i = 0; i<arguments.length; i++){
 		result += ' '+arguments[i];
