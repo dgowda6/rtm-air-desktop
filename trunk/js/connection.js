@@ -261,7 +261,7 @@ rtmconn.getList = function(l, searchString, ok, error){
 							list_id: list.item(index).getAttribute('id'),
 							series_id: s.getAttribute('id'),
 							name: s.getAttribute('name'),
-							location_id: s.getAttribute('location_id'),
+//							location_id: s.getAttribute('location_id'),
 							source: s.getAttribute('source'),
 							repeat: s.getElementsByTagName('rrule').length>0
 						};
@@ -356,6 +356,24 @@ rtmconn.createTimeline = function(ok, error){
 		}, error: error});
 };
 
+rtmconn.createTask = function(tl, data, ok, error){
+	this.addTask(tl, data.text, data.list, function(task){
+		if(data.estimate)
+			conn.setEstimate(tl, task, data.estimate);
+		if(data.tags.length>0)
+			conn.setTags(tl, task, data.tags.join(','));
+		if(data.location)
+			conn.setLocation(tl, task, data.location);
+		if(data.priority<4)
+			conn.setPriority(tl, task, data.priority);
+		if(data.repeat)
+			conn.setRecurrence(tl, task, data.repeat);
+		if(ok){
+			ok(task);
+		}
+	}, error);
+};
+
 rtmconn.addTask = function(timeline, name, list_id, ok, error){
 	this.makeQuery({
 		url: this.buildURL({
@@ -427,6 +445,13 @@ rtmconn.setEstimate = function(timeline, task, estimate, ok, error){
 };
 
 rtmconn.setLocation = function(timeline, task, location, ok, error){
+	var loc_id = null;
+	for(var i = 0; i<rtmconn.locations.length; i++){
+		if(rtmconn.locations[i].name.toLowerCase().indexOf(location)==0){
+			loc_id = conn.locations[i].id;
+			break;
+		}
+	}
 	this.makeQuery({
 		sync: true,
 		url: this.buildURL({
@@ -434,7 +459,7 @@ rtmconn.setLocation = function(timeline, task, location, ok, error){
 			list_id: task.list_id,
 			taskseries_id: task.series_id,
 			task_id: task.id,
-			location_id: location
+			location_id: loc_id
 		}, 'rtm.tasks.setLocation'),
 		ok: function(xml){
 			rtmconn.addTransaction(xml);
